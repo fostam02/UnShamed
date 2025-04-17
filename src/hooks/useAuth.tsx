@@ -13,7 +13,7 @@ export const useAuth = () => {
   const login = async (email: string, password: string) => {
     try {
       await context.login(email, password);
-      navigate('/dashboard'); // Ensure we navigate to a valid route
+      navigate('/dashboard');
     } catch (error) {
       throw error;
     }

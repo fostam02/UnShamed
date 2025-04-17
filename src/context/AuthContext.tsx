@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Temporary mock user type
@@ -14,25 +14,24 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Export the context
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Temporarily set to true
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [user, setUser] = useState<User | null>({
     id: '1',
     email: 'test@example.com'
   });
 
   const login = async (email: string, password: string) => {
-    // Mock login
     setIsAuthenticated(true);
     setUser({ id: '1', email });
     navigate('/');
   };
 
   const logout = async () => {
-    // Mock logout
     setIsAuthenticated(false);
     setUser(null);
     navigate('/login');
@@ -57,4 +56,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
 
