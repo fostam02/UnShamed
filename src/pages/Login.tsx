@@ -74,6 +74,15 @@ const Login = () => {
   };
 
   const handleResendConfirmation = async () => {
+    if (!email) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       await resendConfirmationEmail(email);
       toast({
@@ -159,13 +168,23 @@ const Login = () => {
             )}
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-4">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{' '}
               <Link to="/register" className="text-primary hover:underline">
                 Create account
               </Link>
             </p>
+
+            <Button
+              type="button"
+              variant="link"
+              onClick={handleResendConfirmation}
+              className="text-sm text-muted-foreground hover:text-primary"
+              disabled={!email}
+            >
+              Resend confirmation email
+            </Button>
           </div>
         </div>
 
