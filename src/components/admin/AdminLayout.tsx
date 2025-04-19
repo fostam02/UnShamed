@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { 
-  Users, 
-  Settings, 
-  Shield, 
-  Bell, 
+import {
+  Users,
+  Settings,
+  Shield,
+  Bell,
   Database,
   ChevronLeft
 } from 'lucide-react';
@@ -23,7 +23,7 @@ const adminNavItems = [
   },
   {
     title: "AI Settings",
-    icon: <Settings className="h-5 w-5" />,
+    icon: <Settings className="h-5 w-5 text-blue-500" />,
     href: "/admin/ai-settings"
   },
   {
@@ -46,18 +46,15 @@ const adminNavItems = [
 export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    e.preventDefault();
-    window.location.href = href; // Force a full page reload
-  };
+  // No need for a custom handler, we'll use React Router's Link
 
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <div className="w-64 border-r bg-card">
         <div className="p-4 border-b">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center text-sm text-muted-foreground hover:text-foreground"
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
@@ -66,10 +63,9 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         </div>
         <nav className="p-2">
           {adminNavItems.map((item) => (
-            <a
+            <Link
               key={item.href}
-              href={item.href}
-              onClick={(e) => handleNavClick(e, item.href)}
+              to={item.href}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
                 location.pathname === item.href ? "bg-accent" : "transparent"
@@ -77,7 +73,7 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
             >
               {item.icon}
               {item.title}
-            </a>
+            </Link>
           ))}
         </nav>
       </div>

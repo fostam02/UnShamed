@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ export const AdminDashboard = () => {
   const { appState } = useAppContext();
   const { userProfile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('users');
@@ -168,6 +169,7 @@ export const AdminDashboard = () => {
           <TabsTrigger value="activity">Activity Log</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="settings">System Settings</TabsTrigger>
+          <TabsTrigger value="ai">AI Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
@@ -364,6 +366,28 @@ export const AdminDashboard = () => {
                 <Button>
                   <Settings className="mr-2 h-4 w-4" />
                   Save Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ai" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Configuration</CardTitle>
+              <CardDescription>
+                Configure AI providers and settings for the Spark AI concierge
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  To configure AI providers and settings, please visit the dedicated AI Settings page.
+                </p>
+                <Button onClick={() => navigate('/admin/ai-settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Go to AI Settings
                 </Button>
               </div>
             </CardContent>
