@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { AppProvider } from '@/context/AppContext';
@@ -12,7 +12,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AddState } from '@/pages/AddState';
 import { StateDetails } from '@/pages/StateDetails';
 import { StateProfiles } from '@/pages/StateProfiles';
-import { AdminDashboard } from '@/pages/admin/AdminDashboard';
+import { AdminDashboard, AISettings, UserManagement, SecuritySettings, NotificationSettings, DatabaseManagement } from '@/pages/admin';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -47,7 +47,13 @@ function App() {
                     <Route path="/audit" element={<AuditLog />} />
                     <Route path="/notifications" element={<Notifications />} />
                     <Route path="/delegates" element={<Delegates />} />
+                    {/* Admin routes */}
                     <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/admin/ai-settings" element={<AISettings />} />
+                    <Route path="/admin/users" element={<UserManagement />} />
+                    <Route path="/admin/security" element={<SecuritySettings />} />
+                    <Route path="/admin/notifications" element={<NotificationSettings />} />
+                    <Route path="/admin/database" element={<DatabaseManagement />} />
                   </Route>
 
                   {/* Fallback route */}
