@@ -31,6 +31,7 @@ export const AdminDashboard = () => {
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('users');
 
   // Mock data for admin dashboard
   const mockUsers = [
@@ -95,11 +96,11 @@ export const AdminDashboard = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setActiveTab('settings')}>
             <Settings className="mr-2 h-4 w-4" />
             Settings
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setActiveTab('notifications')}>
             <Bell className="mr-2 h-4 w-4" />
             Send Notification
           </Button>
@@ -161,7 +162,7 @@ export const AdminDashboard = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="users">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="activity">Activity Log</TabsTrigger>

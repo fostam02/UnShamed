@@ -1,22 +1,26 @@
-import { useState } from 'react';
-import { Bot, X, Minimize2, Maximize2, Send } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Bot, X, Minimize2, Maximize2, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { initializeConversation, sendMessage, getSuggestions, SparkConversation } from '@/services/spark-service';
 
 interface Message {
   id: string;
   content: string;
   sender: 'user' | 'spark';
   timestamp: Date;
+  isLoading?: boolean;
 }
 
 export function SparkChatBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [conversation, setConversation] = useState<SparkConversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -25,9 +29,26 @@ export function SparkChatBubble() {
       timestamp: new Date(),
     },
   ]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize conversation when component mounts
+  useEffect(() => {
+    const newConversation = initializeConversation();
+    setConversation(newConversation);
+    setSuggestions(getSuggestions());
+  }, []);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !conversation) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -36,20 +57,49 @@ export function SparkChatBubble() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setMessage('');
-
-    // TODO: Integrate with AI provider
-    const sparkResponse: Message = {
+    // Add loading message
+    const loadingMessage: Message = {
       id: (Date.now() + 1).toString(),
-      content: "I'm processing your request. This feature will be available soon!",
+      content: '',
       sender: 'spark',
       timestamp: new Date(),
+      isLoading: true,
     };
 
-    setTimeout(() => {
-      setMessages((prev) => [...prev, sparkResponse]);
-    }, 1000);
+    setMessages((prev) => [...prev, userMessage, loadingMessage]);
+    setMessage('');
+    setIsLoading(true);
+
+    try {
+      // Send message to Spark service
+      const response = await sendMessage(conversation.id, message);
+
+      // Remove loading message and add response
+      setMessages((prev) => {
+        const filtered = prev.filter(msg => !msg.isLoading);
+        return [...filtered, {
+          id: (Date.now() + 2).toString(),
+          content: response.message.content,
+          sender: 'spark',
+          timestamp: new Date(),
+        }];
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+
+      // Remove loading message and add error message
+      setMessages((prev) => {
+        const filtered = prev.filter(msg => !msg.isLoading);
+        return [...filtered, {
+          id: (Date.now() + 2).toString(),
+          content: "I'm sorry, I couldn't process your request. Please try again.",
+          sender: 'spark',
+          timestamp: new Date(),
+        }];
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -104,11 +154,40 @@ export function SparkChatBubble() {
                             : "bg-muted"
                         )}
                       >
-                        {msg.content}
+                        {msg.isLoading ? (
+                          <div className="flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span>Thinking...</span>
+                          </div>
+                        ) : (
+                          msg.content
+                        )}
                       </div>
                     </div>
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
+
+                {messages.length === 1 && suggestions.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground mb-2">Try asking:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {suggestions.map((suggestion, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setMessage(suggestion);
+                            handleSendMessage();
+                          }}
+                        >
+                          {suggestion}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </ScrollArea>
 
               <div className="p-4 border-t">
@@ -125,8 +204,12 @@ export function SparkChatBubble() {
                     placeholder="Type your message..."
                     className="flex-1"
                   />
-                  <Button type="submit" size="icon">
-                    <Send className="h-4 w-4" />
+                  <Button type="submit" size="icon" disabled={isLoading || !message.trim()}>
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </form>
               </div>

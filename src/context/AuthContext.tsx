@@ -27,7 +27,6 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
@@ -51,35 +50,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Attempting login for:', email);
 
-      // For demo purposes, allow any login
-      if (email && password) {
-        // Create a mock user profile
-        const mockProfile: UserProfile = {
-          id: 'user-123',
-          firstName: 'Demo',
-          lastName: 'User',
-          email: email,
-          licenses: [],
-          isProfileComplete: false
-        };
+      // Use Supabase authentication
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        // Add admin role if email contains 'admin'
-        if (email.includes('admin')) {
-          (mockProfile as any).role = 'admin';
-        } else {
-          (mockProfile as any).role = 'user';
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // Fetch user profile from profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Error fetching profile:', profileError);
+          throw profileError;
         }
 
+        // Create user profile from Supabase data
+        const userProfile: UserProfile = {
+          id: data.user.id,
+          firstName: profileData?.first_name || '',
+          lastName: profileData?.last_name || '',
+          email: data.user.email || '',
+          licenses: profileData?.licenses || [],
+          isProfileComplete: !!profileData?.is_profile_complete,
+          role: profileData?.role || 'user'
+        };
+
         setIsAuthenticated(true);
-        setUserProfile(mockProfile);
+        setUserProfile(userProfile);
 
         // Save to localStorage for persistence
         localStorage.setItem('authUser', JSON.stringify({
           isAuthenticated: true,
-          userProfile: mockProfile
+          userProfile
         }));
 
-        return { user: mockProfile };
+        return { user: userProfile };
       }
 
       throw new Error('Invalid email or password');
@@ -91,34 +105,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, name: string) => {
     try {
-      // For demo purposes, simulate successful registration
-      if (email && password && name) {
+      // Use Supabase authentication for registration
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
         const [firstName, ...lastNameParts] = name.split(' ');
         const lastName = lastNameParts.join(' ');
 
-        // Create a mock user profile
-        const mockProfile: UserProfile = {
-          id: `user-${Date.now()}`,
+        // Create a profile in the profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: email,
+              first_name: firstName || name,
+              last_name: lastName || '',
+              role: 'user',
+              is_profile_complete: false,
+              licenses: []
+            }
+          ]);
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          throw profileError;
+        }
+
+        // Create user profile
+        const userProfile: UserProfile = {
+          id: data.user.id,
           firstName: firstName || name,
           lastName: lastName || '',
           email: email,
           licenses: [],
-          isProfileComplete: false
+          isProfileComplete: false,
+          role: 'user'
         };
 
-        // Add user role
-        (mockProfile as any).role = 'user';
-
         setIsAuthenticated(true);
-        setUserProfile(mockProfile);
+        setUserProfile(userProfile);
 
         // Save to localStorage for persistence
         localStorage.setItem('authUser', JSON.stringify({
           isAuthenticated: true,
-          userProfile: mockProfile
+          userProfile
         }));
 
-        return { user: mockProfile };
+        return { user: userProfile };
       }
 
       throw new Error('Registration failed');
@@ -130,7 +171,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      // For demo purposes, just clear the state
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        throw error;
+      }
+
+      // Clear local state
       setIsAuthenticated(false);
       setUserProfile(null);
 
@@ -157,7 +205,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resendConfirmationEmail = async (email: string) => {
     try {
-      // For demo purposes, just show a success message
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+
+      if (error) {
+        throw error;
+      }
+
       toast('Confirmation email sent! Please check your inbox.');
     } catch (error) {
       console.error('Error resending confirmation email:', error);
