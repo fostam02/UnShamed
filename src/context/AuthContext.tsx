@@ -11,6 +11,7 @@ interface AuthContextType {
   register: (email: string, password: string, name: string) => Promise<any>;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
   resendConfirmationEmail: (email: string) => Promise<void>;
+  checkEmailConfirmation: (email: string) => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -221,6 +222,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const checkEmailConfirmation = async (email: string): Promise<boolean> => {
+    try {
+      // This is a workaround since Supabase doesn't provide a direct way to check email confirmation
+      // We'll try to sign in with an invalid password and check if the error is about confirmation
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'invalid_password_to_check_confirmation',
+      });
+
+      // If the error mentions email not confirmed, we know it's not confirmed
+      if (error?.message?.includes('Email not confirmed')) {
+        return false;
+      }
+
+      // If we get any other error (like invalid credentials), the email is likely confirmed
+      // but the password is wrong, which is what we expect
+      return true;
+    } catch (error) {
+      console.error('Error checking email confirmation:', error);
+      // Default to true to avoid blocking users unnecessarily
+      return true;
+    }
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -233,7 +258,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout,
       register,
       updateUserProfile,
-      resendConfirmationEmail
+      resendConfirmationEmail,
+      checkEmailConfirmation
     }}>
       {children}
     </AuthContext.Provider>

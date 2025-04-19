@@ -18,13 +18,13 @@ interface LocationState {
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, resendConfirmationEmail } = useAuth();
+  const { login, resendConfirmationEmail, checkEmailConfirmation } = useAuth();
   const { toast } = useToast();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [isEmailNotConfirmed, setIsEmailNotConfirmed] = useState(false);
 
   // Get the page they were trying to visit before being redirected to login
   const from = (location.state as LocationState)?.from?.pathname || '/';
@@ -52,16 +52,17 @@ const Login = () => {
       navigate(from);
     } catch (error: any) {
       console.error('Login failed:', error);
-      setError(error);
 
       // Specific error message for unconfirmed email
       if (error.message?.includes('Email not confirmed')) {
+        setIsEmailNotConfirmed(true);
         toast({
           title: "Email Not Verified",
-          description: "Please check your email inbox and verify your email address before logging in.",
+          description: "Please verify your email address before logging in. Click 'Resend confirmation email' below.",
           variant: "destructive"
         });
       } else {
+        setIsEmailNotConfirmed(false);
         toast({
           title: "Login Failed",
           description: error?.message || "Invalid credentials. Please try again.",
@@ -84,6 +85,18 @@ const Login = () => {
     }
 
     try {
+      // First check if the email is already confirmed
+      const isConfirmed = await checkEmailConfirmation(email);
+
+      if (isConfirmed) {
+        toast({
+          title: "Email Already Confirmed",
+          description: "This email is already confirmed. You can log in with your password."
+        });
+        return;
+      }
+
+      // If not confirmed, resend the confirmation email
       await resendConfirmationEmail(email);
       toast({
         title: "Confirmation Email Sent",
@@ -156,15 +169,20 @@ const Login = () => {
               {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
             </Button>
 
-            {error?.message?.includes('Email not confirmed') && (
-              <Button
-                type="button"
-                variant="link"
-                onClick={handleResendConfirmation}
-                className="w-full mt-2 text-sm"
-              >
-                Resend confirmation email
-              </Button>
+            {isEmailNotConfirmed && (
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <p className="text-sm text-amber-800 mb-2">
+                  Your email address has not been verified. Please check your inbox for a verification email or click below to receive a new one.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleResendConfirmation}
+                  className="w-full text-sm bg-amber-100 hover:bg-amber-200 border-amber-300"
+                >
+                  Resend confirmation email
+                </Button>
+              </div>
             )}
           </form>
 
