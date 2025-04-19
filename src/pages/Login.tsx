@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -25,9 +25,20 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isEmailNotConfirmed, setIsEmailNotConfirmed] = useState(false);
+  const [isAdminEmail, setIsAdminEmail] = useState(false);
 
   // Get the page they were trying to visit before being redirected to login
   const from = (location.state as LocationState)?.from?.pathname || '/';
+
+  // Check if the email is an admin email
+  const checkIfAdminEmail = (email: string) => {
+    return email.toLowerCase().includes('admin');
+  };
+
+  // Update admin status when email changes
+  useEffect(() => {
+    setIsAdminEmail(checkIfAdminEmail(email));
+  }, [email]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,6 +185,11 @@ const Login = () => {
                 <p className="text-sm text-amber-800 mb-2">
                   Your email address has not been verified. Please check your inbox for a verification email or click below to receive a new one.
                 </p>
+                {isAdminEmail && (
+                  <p className="text-sm text-green-700 mb-2">
+                    <strong>Admin account detected:</strong> Email confirmation will be bypassed for admin accounts. You can proceed with login.
+                  </p>
+                )}
                 <Button
                   type="button"
                   variant="outline"
