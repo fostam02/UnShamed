@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { User, Lock, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { register } = useAuth();
 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -48,9 +47,46 @@ const Register = () => {
 
     try {
       console.log('Attempting to register with:', { email, username });
-      // Call register with email, password, and username (as name)
-      const result = await register(email, password, username);
-      console.log('Registration result:', result);
+
+      // Direct Supabase registration
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: username,
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('Registration successful:', data);
+
+      // Create profile in the profiles table
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: email,
+              first_name: username,
+              last_name: '',
+              role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
+              is_profile_complete: false,
+              licenses: []
+            }
+          ]);
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+        } else {
+          console.log('Profile created successfully');
+        }
+      }
 
       toast({
         title: "Account Created",
@@ -156,7 +192,12 @@ const Register = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button
+                type="button"
+                className="w-full"
+                disabled={isLoading}
+                onClick={handleRegister}
+              >
                 {isLoading ? 'Creating Account...' : 'Create Account'}
                 {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
