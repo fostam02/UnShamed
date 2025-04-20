@@ -16,7 +16,7 @@ const RegisterDirect = () => {
     // Reset states
     setError('');
     setSuccess('');
-    
+
     // Basic validation
     if (!username || !email || !password || !confirmPassword) {
       setError('Please fill out all fields');
@@ -28,54 +28,88 @@ const RegisterDirect = () => {
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Check for offensive content in email or username
+    const offensiveRegex = /fuck|shit|ass|bitch|cunt|dick/i;
+    if (offensiveRegex.test(email) || offensiveRegex.test(username)) {
+      setError('Please use appropriate language in your email and username');
+      return;
+    }
+
     // Start loading
     setIsLoading(true);
 
     try {
       console.log('Attempting direct registration with:', { email, username });
-      
-      // First, check if the user already exists in profiles
-      const { data: existingProfiles, error: checkError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('email', email)
-        .limit(1);
-        
-      if (checkError) {
-        console.error('Error checking existing profile:', checkError);
-        throw new Error('Error checking if user already exists');
+
+      try {
+        // First, check if the user already exists in profiles
+        const { data: existingProfiles, error: checkError } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('email', email.toLowerCase())
+          .limit(1);
+
+        if (checkError) {
+          console.error('Error checking existing profile:', checkError);
+          // Continue with registration instead of throwing an error
+          console.log('Continuing with registration despite check error');
+        } else if (existingProfiles && existingProfiles.length > 0) {
+          setError('An account with this email already exists');
+          setIsLoading(false);
+          return;
+        }
+      } catch (checkErr) {
+        console.error('Exception during user existence check:', checkErr);
+        // Continue with registration instead of failing
+        console.log('Continuing with registration despite check exception');
       }
-      
-      if (existingProfiles && existingProfiles.length > 0) {
-        throw new Error('An account with this email already exists');
-      }
-      
+
       // Generate a unique user ID
       const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      
-      // Create a profile directly in the database
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: userId,
-            email: email,
-            first_name: username,
-            last_name: '',
-            role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
-            is_profile_complete: false,
-            licenses: [],
-            password_hash: btoa(password) // Simple encoding, not secure but works for demo
-          }
-        ]);
 
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        throw new Error('Failed to create user profile');
+      try {
+        // Create a profile directly in the database
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: userId,
+              email: email.toLowerCase(), // Store email in lowercase for consistency
+              first_name: username,
+              last_name: '',
+              role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
+              is_profile_complete: false,
+              licenses: [],
+              password_hash: btoa(password) // Simple encoding, not secure but works for demo
+            }
+          ]);
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          if (profileError.code === '23505') { // Unique violation error code
+            setError('An account with this email already exists');
+          } else {
+            setError('Failed to create user profile: ' + profileError.message);
+          }
+          setIsLoading(false);
+          return;
+        }
+      } catch (insertErr) {
+        console.error('Exception during profile creation:', insertErr);
+        setError('Failed to create user profile due to a server error');
+        setIsLoading(false);
+        return;
       }
-      
+
       console.log('Profile created successfully, bypassing Supabase Auth');
-      
+
       // Store auth info in localStorage to simulate a logged-in user
       const userProfile = {
         id: userId,
@@ -86,14 +120,14 @@ const RegisterDirect = () => {
         isProfileComplete: false,
         role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
       };
-      
+
       localStorage.setItem('authUser', JSON.stringify({
         isAuthenticated: true,
         userProfile
       }));
-      
+
       setSuccess('Account created successfully! Redirecting to dashboard...');
-      
+
       // Redirect to dashboard after a short delay
       setTimeout(() => {
         navigate('/');
@@ -107,11 +141,11 @@ const RegisterDirect = () => {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center', 
+      alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
       backgroundColor: '#0f172a'
@@ -124,24 +158,24 @@ const RegisterDirect = () => {
         padding: '24px',
         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
       }}>
-        <h1 style={{ 
-          fontSize: '24px', 
+        <h1 style={{
+          fontSize: '24px',
           fontWeight: 'bold',
           color: 'white',
           marginBottom: '8px',
           textAlign: 'center'
         }}>Create Account</h1>
-        
-        <p style={{ 
-          fontSize: '14px', 
+
+        <p style={{
+          fontSize: '14px',
           color: '#94a3b8',
           marginBottom: '24px',
           textAlign: 'center'
         }}>Register to start tracking your compliance status</p>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -167,8 +201,8 @@ const RegisterDirect = () => {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -194,8 +228,8 @@ const RegisterDirect = () => {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -221,8 +255,8 @@ const RegisterDirect = () => {
         </div>
 
         <div style={{ marginBottom: '24px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -304,7 +338,7 @@ const RegisterDirect = () => {
           Already have an account?
         </div>
 
-        <Link 
+        <Link
           to="/login"
           style={{
             display: 'block',

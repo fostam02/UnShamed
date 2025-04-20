@@ -16,7 +16,7 @@ interface LocationState {
 const LoginDirect = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,88 +36,117 @@ const LoginDirect = () => {
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Check for offensive content in email
+    const offensiveRegex = /fuck|shit|ass|bitch|cunt|dick/i;
+    if (offensiveRegex.test(email)) {
+      setError('Please use appropriate language in your email');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       console.log('Attempting login for:', email);
-      
-      // First try to find the user in our profiles table
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .single();
-        
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        
-        // Try standard Supabase auth as fallback
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
 
-        if (error) {
-          throw error;
-        }
-        
-        if (data.user) {
-          // Create a user profile from Supabase auth data
-          const userProfile = {
-            id: data.user.id,
-            firstName: data.user.user_metadata?.full_name?.split(' ')[0] || email.split('@')[0],
-            lastName: data.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
-            email: data.user.email || '',
-            licenses: [],
-            isProfileComplete: false,
-            role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
-          };
-          
-          // Store in localStorage
-          localStorage.setItem('authUser', JSON.stringify({
-            isAuthenticated: true,
-            userProfile
-          }));
-          
-          setSuccess('Login successful! Redirecting...');
-          
-          // Redirect to the page they were trying to access
-          setTimeout(() => {
-            navigate(from);
-          }, 1000);
-        }
-      } else {
-        // Check if password matches (simple check for demo purposes)
-        const storedPasswordHash = profileData.password_hash;
-        const inputPasswordHash = btoa(password);
-        
-        if (storedPasswordHash && storedPasswordHash === inputPasswordHash) {
-          // Create a user profile from the profile data
-          const userProfile = {
-            id: profileData.id,
-            firstName: profileData.first_name || '',
-            lastName: profileData.last_name || '',
-            email: profileData.email || '',
-            licenses: profileData.licenses || [],
-            isProfileComplete: !!profileData.is_profile_complete,
-            role: profileData.role || 'user'
-          };
-          
-          // Store in localStorage
-          localStorage.setItem('authUser', JSON.stringify({
-            isAuthenticated: true,
-            userProfile
-          }));
-          
-          setSuccess('Login successful! Redirecting...');
-          
-          // Redirect to the page they were trying to access
-          setTimeout(() => {
-            navigate(from);
-          }, 1000);
+      try {
+        // First try to find the user in our profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', email.toLowerCase())
+          .single();
+
+        if (profileError) {
+          console.log('User not found in profiles, trying Supabase auth');
+
+          try {
+            // Try standard Supabase auth as fallback
+            const { data, error } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+
+            if (error) {
+              console.error('Supabase auth error:', error);
+              setError(error.message || 'Invalid email or password');
+              return;
+            }
+
+            if (data.user) {
+              // Create a user profile from Supabase auth data
+              const userProfile = {
+                id: data.user.id,
+                firstName: data.user.user_metadata?.full_name?.split(' ')[0] || email.split('@')[0],
+                lastName: data.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+                email: data.user.email || '',
+                licenses: [],
+                isProfileComplete: false,
+                role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
+              };
+
+              // Store in localStorage
+              localStorage.setItem('authUser', JSON.stringify({
+                isAuthenticated: true,
+                userProfile
+              }));
+
+              setSuccess('Login successful! Redirecting...');
+
+              // Redirect to the page they were trying to access
+              setTimeout(() => {
+                navigate(from);
+              }, 1000);
+            }
+          } catch (authError) {
+            console.error('Exception during Supabase auth:', authError);
+            setError('Login failed. Please try again.');
+            return;
+          }
         } else {
-          throw new Error('Invalid password');
+          // Check if password matches (simple check for demo purposes)
+          const storedPasswordHash = profileData.password_hash;
+          const inputPasswordHash = btoa(password);
+
+          if (storedPasswordHash && storedPasswordHash === inputPasswordHash) {
+            // Create a user profile from the profile data
+            const userProfile = {
+              id: profileData.id,
+              firstName: profileData.first_name || '',
+              lastName: profileData.last_name || '',
+              email: profileData.email || '',
+              licenses: profileData.licenses || [],
+              isProfileComplete: !!profileData.is_profile_complete,
+              role: profileData.role || 'user'
+            };
+
+            // Store in localStorage
+            localStorage.setItem('authUser', JSON.stringify({
+              isAuthenticated: true,
+              userProfile
+            }));
+
+            setSuccess('Login successful! Redirecting...');
+
+            // Redirect to the page they were trying to access
+            setTimeout(() => {
+              navigate(from);
+            }, 1000);
+          } else {
+            setError('Invalid password');
+            return;
+          }
         }
+      } catch (error) {
+        console.error('Unexpected error during login:', error);
+        setError('An unexpected error occurred. Please try again.');
+        return;
       }
     } catch (error: any) {
       console.error('Login error:', error);
