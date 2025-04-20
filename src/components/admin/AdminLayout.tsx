@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Users,
@@ -7,8 +7,10 @@ import {
   Shield,
   Bell,
   Database,
-  ChevronLeft
+  ChevronLeft,
+  LogOut
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const adminNavItems = [
   {
@@ -45,6 +47,14 @@ const adminNavItems = [
 
 export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear admin authentication
+    sessionStorage.removeItem('adminAuth');
+    // Redirect to home
+    navigate('/');
+  };
 
   // No need for a custom handler, we'll use React Router's Link
 
@@ -75,6 +85,17 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
               {item.title}
             </Link>
           ))}
+
+          <div className="mt-4 pt-4 border-t">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-start gap-3 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5" />
+              Exit Admin Panel
+            </Button>
+          </div>
         </nav>
       </div>
 

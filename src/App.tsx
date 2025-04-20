@@ -7,6 +7,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ProtectedAdminRoute } from '@/components/admin/ProtectedAdminRoute';
 
 // Import your components
 import { AddState } from '@/pages/AddState';
@@ -47,13 +48,13 @@ function App() {
                     <Route path="/audit" element={<AuditLog />} />
                     <Route path="/notifications" element={<Notifications />} />
                     <Route path="/delegates" element={<Delegates />} />
-                    {/* Admin routes */}
-                    <Route path="/admin" element={<AdminDashboard />} />
-                    <Route path="/admin/ai-settings" element={<AISettings />} />
-                    <Route path="/admin/users" element={<UserManagement />} />
-                    <Route path="/admin/security" element={<SecuritySettings />} />
-                    <Route path="/admin/notifications" element={<NotificationSettings />} />
-                    <Route path="/admin/database" element={<DatabaseManagement />} />
+                    {/* Admin routes - protected with password */}
+                    <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+                    <Route path="/admin/ai-settings" element={<ProtectedAdminRoute><AISettings /></ProtectedAdminRoute>} />
+                    <Route path="/admin/users" element={<ProtectedAdminRoute><UserManagement /></ProtectedAdminRoute>} />
+                    <Route path="/admin/security" element={<ProtectedAdminRoute><SecuritySettings /></ProtectedAdminRoute>} />
+                    <Route path="/admin/notifications" element={<ProtectedAdminRoute><NotificationSettings /></ProtectedAdminRoute>} />
+                    <Route path="/admin/database" element={<ProtectedAdminRoute><DatabaseManagement /></ProtectedAdminRoute>} />
                   </Route>
 
                   {/* Fallback route */}
