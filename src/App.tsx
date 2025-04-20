@@ -19,6 +19,7 @@ import RegisterDirect from '@/pages/RegisterDirect';
 import LoginSimple from '@/pages/LoginSimple';
 import RegisterSimple from '@/pages/RegisterSimple';
 import RegisterFixed from '@/pages/RegisterFixed';
+import LoginFixed from '@/pages/LoginFixed';
 import LandingPage from '@/pages/LandingPage';
 import ForgotPassword from '@/pages/ForgotPassword';
 import Dashboard from '@/pages/Dashboard';
@@ -38,8 +39,9 @@ function App() {
                 <Routes>
                   {/* Public routes */}
                   <Route path="/welcome" element={<LandingPage />} />
-                  <Route path="/login" element={<LoginDirect />} />
+                  <Route path="/login" element={<LoginFixed />} />
                   <Route path="/register" element={<RegisterFixed />} />
+                  <Route path="/login-direct" element={<LoginDirect />} />
                   <Route path="/register-direct" element={<RegisterDirect />} />
                   <Route path="/login-simple" element={<LoginSimple />} />
                   <Route path="/register-simple" element={<RegisterSimple />} />

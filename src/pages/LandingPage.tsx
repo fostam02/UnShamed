@@ -114,15 +114,15 @@ const LandingPage = () => {
             color: '#94a3b8'
           }}>
             <p>
-              Having trouble? Try our{' '}
+              Need help? Try our{' '}
               <Link
-                to="/register-simple"
+                to="/welcome"
                 style={{
                   color: '#4f46e5',
                   textDecoration: 'underline'
                 }}
               >
-                offline mode
+                support page
               </Link>
             </p>
           </div>
