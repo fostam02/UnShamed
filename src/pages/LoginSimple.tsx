@@ -1,263 +1,225 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { Logo } from '@/components/Logo';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
-
-interface LocationState {
-  from?: {
-    pathname: string;
-  };
-}
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 
 const LoginSimple = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [isAdminEmail, setIsAdminEmail] = useState(false);
 
-  // Get the page they were trying to visit before being redirected to login
-  const from = (location.state as LocationState)?.from?.pathname || '/';
-
-  // Check if the email is an admin email or a special test email
-  const checkIfAdminEmail = (email: string) => {
-    return email.toLowerCase().includes('admin') ||
-           email.toLowerCase() === 'nestertester5@testing.org' ||
-           email.toLowerCase() === 'gamedesign2030@gmail.com';
-  };
-
-  // Update admin status when email changes
-  useEffect(() => {
-    setIsAdminEmail(checkIfAdminEmail(email));
-  }, [email]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async () => {
+    // Reset error
     setError('');
-    setSuccess('');
 
+    // Basic validation
     if (!email || !password) {
       setError('Please enter both email and password');
       return;
     }
 
+    // Start loading
     setIsLoading(true);
 
     try {
-      console.log('Attempting login for:', email);
+      console.log('Attempting local login for:', email);
 
-      // Check if this is a special email that should bypass normal authentication
-      if (isAdminEmail) {
-        console.log('Special email detected, checking profiles table first');
+      // Check if user exists in local storage
+      const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+      const user = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
 
-        // First check if the user exists in the profiles table
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('email', email)
-          .single();
-
-        if (!profileError && profileData) {
-          console.log('Profile found, creating session manually');
-
-          // Create a user profile
-          const userProfile = {
-            id: profileData.id,
-            firstName: profileData.first_name || '',
-            lastName: profileData.last_name || '',
-            email: email,
-            licenses: profileData.licenses || [],
-            isProfileComplete: !!profileData.is_profile_complete,
-            role: profileData.role || 'user'
-          };
-
-          // Store in localStorage to simulate a logged-in user
-          localStorage.setItem('authUser', JSON.stringify({
-            isAuthenticated: true,
-            userProfile
-          }));
-
-          setSuccess('Login successful! Redirecting...');
-
-          // Redirect to the page they were trying to access
-          setTimeout(() => {
-            navigate(from);
-          }, 1000);
-
-          return;
-        }
+      if (!user) {
+        setError('User not found. Please check your email or register a new account.');
+        setIsLoading(false);
+        return;
       }
 
-      // Standard login flow if special handling didn't apply
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        // No special handling for email confirmation errors since we've disabled them
-        throw error;
-      } else if (data.user) {
-        console.log('Login successful:', data);
-
-        // Fetch user profile from profiles table
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        let userProfile;
-
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-
-          // If the profile doesn't exist, create a default one
-          userProfile = {
-            id: data.user.id,
-            firstName: data.user.email?.split('@')[0] || 'User',
-            lastName: '',
-            email: data.user.email || '',
-            licenses: [],
-            isProfileComplete: false,
-            role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
-          };
-        } else {
-          userProfile = {
-            id: data.user.id,
-            firstName: profileData.first_name || '',
-            lastName: profileData.last_name || '',
-            email: data.user.email || '',
-            licenses: profileData.licenses || [],
-            isProfileComplete: !!profileData.is_profile_complete,
-            role: profileData.role || 'user'
-          };
-        }
-
-        // Store in localStorage
-        localStorage.setItem('authUser', JSON.stringify({
-          isAuthenticated: true,
-          userProfile
-        }));
-
-        setSuccess('Login successful! Redirecting...');
-
-        // Redirect to the page they were trying to access
-        setTimeout(() => {
-          navigate(from);
-        }, 1000);
+      // Verify password
+      const passwordHash = btoa(password);
+      if (user.passwordHash !== passwordHash) {
+        setError('Incorrect password. Please try again.');
+        setIsLoading(false);
+        return;
       }
+
+      // Login successful - create user profile
+      const userProfile = {
+        id: user.userId,
+        firstName: user.username,
+        lastName: '',
+        email: user.email.toLowerCase(),
+        licenses: [],
+        isProfileComplete: false,
+        role: user.role || 'user'
+      };
+
+      // Store in localStorage
+      localStorage.setItem('authUser', JSON.stringify({
+        isAuthenticated: true,
+        userProfile
+      }));
+
+      console.log('Local login successful');
+
+      // Redirect to dashboard
+      navigate('/');
     } catch (error: any) {
       console.error('Login error:', error);
-      setError(error?.message || 'Invalid email or password');
+      setError(error?.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Email confirmation is now disabled, so this function is no longer needed
-  const handleResendConfirmation = async () => {
-    setSuccess('Email confirmation is not required.');
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="flex flex-col items-center space-y-4">
-          <Logo size="lg" className="mb-4" />
-          <h1 className="text-2xl font-bold">UnShamed</h1>
-          <p className="text-muted-foreground">Compliance Tracker</p>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+      backgroundColor: '#0f172a'
+    }}>
+      <div style={{
+        maxWidth: '400px',
+        width: '100%',
+        backgroundColor: '#1e293b',
+        borderRadius: '8px',
+        padding: '24px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+      }}>
+        <h1 style={{
+          fontSize: '24px',
+          fontWeight: 'bold',
+          color: 'white',
+          marginBottom: '8px',
+          textAlign: 'center'
+        }}>Sign In</h1>
+
+        <p style={{
+          fontSize: '14px',
+          color: '#94a3b8',
+          marginBottom: '24px',
+          textAlign: 'center'
+        }}>Log in to access your compliance dashboard</p>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: 'medium',
+            color: 'white'
+          }}>
+            Email
+          </label>
+          <input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid #334155',
+              backgroundColor: '#0f172a',
+              color: 'white',
+              fontSize: '14px'
+            }}
+          />
         </div>
 
-        <div className="bg-card rounded-lg border shadow-sm p-6">
-          <h2 className="text-xl font-semibold mb-4">Welcome Back</h2>
-          <p className="text-muted-foreground mb-6">
-            Login to access your compliance dashboard
-          </p>
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: 'medium',
+            color: 'white'
+          }}>
+            Password
+          </label>
+          <input
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              border: '1px solid #334155',
+              backgroundColor: '#0f172a',
+              color: 'white',
+              fontSize: '14px'
+            }}
+          />
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  className="pl-10"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  className="pl-10"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
-            )}
-
-            {success && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-800">{success}</p>
-              </div>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Logging in...' : 'Login'}
-              {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
-            </Button>
-
-            {/* Email confirmation section removed as it's no longer needed */}
-          </form>
-
-          <div className="mt-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-primary hover:underline">
-                Create account
-              </Link>
-            </p>
-
-            {/* Resend confirmation button removed as it's no longer needed */}
+        {error && (
+          <div style={{
+            padding: '12px',
+            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+            borderRadius: '4px',
+            marginBottom: '16px',
+            color: '#ef4444',
+            fontSize: '14px'
+          }}>
+            {error}
           </div>
+        )}
+
+        <button
+          onClick={handleLogin}
+          disabled={isLoading}
+          style={{
+            width: '100%',
+            padding: '10px',
+            backgroundColor: isLoading ? '#4f46e5aa' : '#4f46e5',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '14px',
+            fontWeight: 'medium',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '24px'
+          }}
+        >
+          {isLoading ? 'Signing In...' : 'Sign In'}
+        </button>
+
+        <div style={{
+          textAlign: 'center',
+          fontSize: '14px',
+          color: '#94a3b8',
+          marginBottom: '16px'
+        }}>
+          Don't have an account?
         </div>
 
-        <div className="text-center text-sm text-muted-foreground">
-          <p>For demo purposes, you can use any email and password.</p>
-          <p>Include "admin" in the email to get admin access.</p>
-          <p>The emails "nestertester5@testing.org" and "gamedesign2030@gmail.com" are also pre-approved.</p>
-        </div>
+        <Link
+          to="/register-simple"
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '10px',
+            backgroundColor: 'transparent',
+            color: 'white',
+            border: '1px solid #334155',
+            borderRadius: '4px',
+            fontSize: '14px',
+            fontWeight: 'medium',
+            textAlign: 'center',
+            textDecoration: 'none'
+          }}
+        >
+          Create Account
+        </Link>
       </div>
     </div>
   );

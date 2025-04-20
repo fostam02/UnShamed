@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 const RegisterSimple = () => {
   const navigate = useNavigate();
@@ -28,63 +28,73 @@ const RegisterSimple = () => {
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Check for offensive content in email or username
+    const offensiveRegex = /fuck|shit|ass|bitch|cunt|dick/i;
+    if (offensiveRegex.test(email) || offensiveRegex.test(username)) {
+      setError('Please use appropriate language in your email and username');
+      return;
+    }
+
     // Start loading
     setIsLoading(true);
 
     try {
-      console.log('Attempting to register with:', { email, username });
+      console.log('Using completely local registration for:', { email, username });
 
-      // Direct Supabase registration with user metadata
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: username
-          }
-        }
-      });
+      // Generate a unique ID
+      const userId = uuidv4();
+      console.log('Generated user ID:', userId);
 
-      if (error) {
-        throw error;
+      // Create a simple password hash
+      const passwordHash = btoa(password);
+
+      // Create user profile directly in localStorage
+      const userProfile = {
+        id: userId,
+        firstName: username,
+        lastName: '',
+        email: email.toLowerCase(),
+        licenses: [],
+        isProfileComplete: false,
+        role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
+      };
+
+      // Store in localStorage
+      localStorage.setItem('authUser', JSON.stringify({
+        isAuthenticated: true,
+        userProfile
+      }));
+
+      // Also store in a separate users collection for future logins
+      try {
+        const existingUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+        existingUsers.push({
+          email: email.toLowerCase(),
+          username,
+          passwordHash,
+          userId,
+          role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
+          createdAt: new Date().toISOString()
+        });
+        localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
+      } catch (storageError) {
+        console.error('Error storing user in local registry:', storageError);
+        // Continue anyway since the main auth is set
       }
 
-      console.log('Registration successful:', data);
+      console.log('Local registration completed successfully');
+      setSuccess('Account created successfully! Redirecting to dashboard...');
 
-      // Create a profile for the user
-      if (data.user) {
-        try {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: data.user.id,
-                email: email,
-                first_name: username,
-                last_name: '',
-                role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
-                is_profile_complete: false,
-                licenses: []
-              }
-            ]);
-
-          if (profileError) {
-            console.error('Error creating profile:', profileError);
-            // Continue anyway - the login process can handle missing profiles
-          } else {
-            console.log('Profile created successfully');
-          }
-        } catch (profileError) {
-          console.error('Error in profile creation:', profileError);
-          // Continue anyway - the login process can handle missing profiles
-        }
-      }
-
-      setSuccess('Account created successfully! Redirecting to login...');
-
-      // Redirect to login page after a short delay
+      // Redirect to dashboard after a short delay
       setTimeout(() => {
-        navigate('/login');
+        navigate('/');
       }, 2000);
     } catch (error: any) {
       console.error('Registration error:', error);

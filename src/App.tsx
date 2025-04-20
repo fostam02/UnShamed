@@ -16,6 +16,9 @@ import { StateProfiles } from '@/pages/StateProfiles';
 import { AdminDashboard, AISettings, UserManagement, SecuritySettings, NotificationSettings, DatabaseManagement } from '@/pages/admin';
 import LoginDirect from '@/pages/LoginDirect';
 import RegisterDirect from '@/pages/RegisterDirect';
+import LoginSimple from '@/pages/LoginSimple';
+import RegisterSimple from '@/pages/RegisterSimple';
+import LandingPage from '@/pages/LandingPage';
 import ForgotPassword from '@/pages/ForgotPassword';
 import Dashboard from '@/pages/Dashboard';
 import Profile from '@/pages/Profile';
@@ -33,8 +36,11 @@ function App() {
               <div className="min-h-screen bg-background">
                 <Routes>
                   {/* Public routes */}
+                  <Route path="/welcome" element={<LandingPage />} />
                   <Route path="/login" element={<LoginDirect />} />
                   <Route path="/register" element={<RegisterDirect />} />
+                  <Route path="/login-simple" element={<LoginSimple />} />
+                  <Route path="/register-simple" element={<RegisterSimple />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
 
                   {/* Protected routes */}
