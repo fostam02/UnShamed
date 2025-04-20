@@ -25,7 +25,7 @@ const LandingPage = () => {
         }}>
           Welcome to UnShamed
         </h1>
-        
+
         <p style={{
           fontSize: '18px',
           marginBottom: '32px',
@@ -33,7 +33,7 @@ const LandingPage = () => {
         }}>
           Your compliance tracking solution
         </p>
-        
+
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -54,7 +54,7 @@ const LandingPage = () => {
             }}>
               Having trouble with registration?
             </h2>
-            
+
             <p style={{
               fontSize: '16px',
               marginBottom: '24px',
@@ -62,14 +62,14 @@ const LandingPage = () => {
             }}>
               Try our simplified registration process that works even when our database is experiencing issues.
             </p>
-            
+
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '12px'
             }}>
               <Link
-                to="/register-simple"
+                to="/register"
                 style={{
                   display: 'block',
                   width: '100%',
@@ -84,11 +84,11 @@ const LandingPage = () => {
                   textDecoration: 'none'
                 }}
               >
-                Create Account (Simple Mode)
+                Create Account
               </Link>
-              
+
               <Link
-                to="/login-simple"
+                to="/login"
                 style={{
                   display: 'block',
                   width: '100%',
@@ -103,26 +103,26 @@ const LandingPage = () => {
                   textDecoration: 'none'
                 }}
               >
-                Sign In (Simple Mode)
+                Sign In
               </Link>
             </div>
           </div>
-          
+
           <div style={{
             marginTop: '24px',
             fontSize: '14px',
             color: '#94a3b8'
           }}>
             <p>
-              Want to try the standard registration process?{' '}
+              Having trouble? Try our{' '}
               <Link
-                to="/register"
+                to="/register-simple"
                 style={{
                   color: '#4f46e5',
                   textDecoration: 'underline'
                 }}
               >
-                Click here
+                offline mode
               </Link>
             </p>
           </div>
