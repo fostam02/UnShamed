@@ -160,12 +160,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, name: string) => {
     try {
-      console.log('Attempting to register user:', email);
+      console.log('Attempting to register user:', email, 'with name:', name);
 
       // Use Supabase authentication for registration
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: name,
+          }
+        }
       });
 
       if (error) {
@@ -173,9 +178,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
 
+      console.log('Registration response:', data);
+
       if (data.user) {
         const [firstName, ...lastNameParts] = name.split(' ');
         const lastName = lastNameParts.join(' ');
+
+        console.log('Creating profile for user:', data.user.id);
 
         // Create a profile in the profiles table
         const { error: profileError } = await supabase
@@ -186,7 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: email,
               first_name: firstName || name,
               last_name: lastName || '',
-              role: 'user',
+              role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
               is_profile_complete: false,
               licenses: []
             }
@@ -196,6 +205,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error creating profile:', profileError);
           throw profileError;
         }
+
+        console.log('Profile created successfully');
 
         // Create user profile
         const userProfile: UserProfile = {

@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { User, Lock, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -22,6 +22,7 @@ const Register = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Register form submitted');
 
     // Validate form
     if (!username || !email || !password || !confirmPassword) {
@@ -46,8 +47,10 @@ const Register = () => {
     setIsLoading(true);
 
     try {
+      console.log('Attempting to register with:', { email, username });
       // Call register with email, password, and username (as name)
-      await register(email, password, username);
+      const result = await register(email, password, username);
+      console.log('Registration result:', result);
 
       toast({
         title: "Account Created",
