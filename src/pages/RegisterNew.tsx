@@ -16,7 +16,7 @@ const RegisterNew = () => {
     // Reset states
     setError('');
     setSuccess('');
-    
+
     // Basic validation
     if (!username || !email || !password || !confirmPassword) {
       setError('Please fill out all fields');
@@ -33,7 +33,7 @@ const RegisterNew = () => {
 
     try {
       console.log('Attempting to register with:', { email, username });
-      
+
       // Direct Supabase registration
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -50,34 +50,76 @@ const RegisterNew = () => {
       }
 
       console.log('Registration successful:', data);
-      
+
       // Create profile in the profiles table
       if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              email: email,
+        try {
+          console.log('Creating profile for user ID:', data.user.id);
+
+          // First check if the profiles table exists
+          const { error: tableCheckError } = await supabase
+            .from('profiles')
+            .select('id')
+            .limit(1);
+
+          if (tableCheckError) {
+            console.error('Error checking profiles table:', tableCheckError);
+            // Table might not exist, try to create it
+            await supabase.rpc('create_profiles_table');
+          }
+
+          // Now try to insert the profile
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: data.user.id,
+                email: email,
+                first_name: username,
+                last_name: '',
+                role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
+                is_profile_complete: false,
+                licenses: []
+              }
+            ]);
+
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+
+            // Try an alternative approach - use RPC if available
+            const { error: rpcError } = await supabase.rpc('create_user_profile', {
+              user_id: data.user.id,
+              user_email: email,
               first_name: username,
               last_name: '',
-              role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
-              is_profile_complete: false,
-              licenses: []
-            }
-          ]);
+              user_role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
+            });
 
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          setError('Account created but profile setup failed. Please contact support.');
-        } else {
-          console.log('Profile created successfully');
+            if (rpcError) {
+              console.error('RPC profile creation also failed:', rpcError);
+              throw new Error('Profile creation failed');
+            } else {
+              console.log('Profile created successfully via RPC');
+            }
+          } else {
+            console.log('Profile created successfully via direct insert');
+          }
+
+          // If we got here, profile creation was successful
           setSuccess('Account created successfully! Redirecting to login...');
-          
+
           // Redirect to login page after a short delay
           setTimeout(() => {
             navigate('/login');
           }, 2000);
+        } catch (profileError) {
+          console.error('Profile creation error:', profileError);
+          setError('Account created but profile setup failed. You can still log in, but please contact support to complete your profile setup.');
+
+          // Still redirect to login after a longer delay
+          setTimeout(() => {
+            navigate('/login');
+          }, 5000);
         }
       }
     } catch (error: any) {
@@ -89,11 +131,11 @@ const RegisterNew = () => {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center', 
+      alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
       backgroundColor: '#0f172a'
@@ -106,24 +148,24 @@ const RegisterNew = () => {
         padding: '24px',
         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
       }}>
-        <h1 style={{ 
-          fontSize: '24px', 
+        <h1 style={{
+          fontSize: '24px',
           fontWeight: 'bold',
           color: 'white',
           marginBottom: '8px',
           textAlign: 'center'
         }}>Create Account</h1>
-        
-        <p style={{ 
-          fontSize: '14px', 
+
+        <p style={{
+          fontSize: '14px',
           color: '#94a3b8',
           marginBottom: '24px',
           textAlign: 'center'
         }}>Register to start tracking your compliance status</p>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -149,8 +191,8 @@ const RegisterNew = () => {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -176,8 +218,8 @@ const RegisterNew = () => {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -203,8 +245,8 @@ const RegisterNew = () => {
         </div>
 
         <div style={{ marginBottom: '24px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -286,7 +328,7 @@ const RegisterNew = () => {
           Already have an account?
         </div>
 
-        <Link 
+        <Link
           to="/login"
           style={{
             display: 'block',
