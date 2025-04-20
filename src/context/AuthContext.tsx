@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('Admin login successful without bypass');
           }
           // If the error is specifically about email confirmation for admin accounts
-          else if (error && error.message.includes('Email not confirmed')) {
+          else if (error && error.message && error.message.includes('Email not confirmed')) {
             console.log('Bypassing email confirmation for admin account');
 
             // Create a mock user profile for the admin
@@ -98,8 +98,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw error;
           }
         } catch (adminError) {
+          console.error('Admin login error:', adminError);
           // If there's an error other than email confirmation, we'll throw it
-          if (adminError instanceof Error && !adminError.message.includes('Email not confirmed')) {
+          if (adminError instanceof Error && adminError.message && !adminError.message.includes('Email not confirmed')) {
             throw adminError;
           }
         }
@@ -310,7 +311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkEmailConfirmation = async (email: string): Promise<boolean> => {
     try {
-      // This is a workaround since Supabase doesn't provide a direct way to check email confirmation
+      // Supabase doesn't provide a direct way to check email confirmation
       // We'll try to sign in with an invalid password and check if the error is about confirmation
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -318,12 +319,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       // If the error mentions email not confirmed, we know it's not confirmed
-      if (error?.message?.includes('Email not confirmed')) {
+      if (error && error.message && error.message.includes('Email not confirmed')) {
+        console.log('Email not confirmed:', email);
         return false;
+      }
+
+      // Special case for admin emails - always consider them confirmed
+      if (email.toLowerCase().includes('admin')) {
+        console.log('Admin email detected, considering it confirmed');
+        return true;
       }
 
       // If we get any other error (like invalid credentials), the email is likely confirmed
       // but the password is wrong, which is what we expect
+      console.log('Email appears to be confirmed:', email);
       return true;
     } catch (error) {
       console.error('Error checking email confirmation:', error);

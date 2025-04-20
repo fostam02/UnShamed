@@ -35,9 +35,29 @@ export function SparkChatBubble() {
 
   // Initialize conversation when component mounts
   useEffect(() => {
-    const newConversation = initializeConversation();
-    setConversation(newConversation);
-    setSuggestions(getSuggestions());
+    try {
+      const newConversation = initializeConversation();
+      setConversation(newConversation);
+      setSuggestions(getSuggestions());
+    } catch (error) {
+      console.error('Error initializing Spark conversation:', error);
+      // Add a fallback conversation if initialization fails
+      setConversation({
+        id: 'fallback_' + Date.now(),
+        messages: [
+          {
+            role: 'system',
+            content: 'You are Spark, an AI assistant for UnShamed.'
+          }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      setSuggestions([
+        'How do I use this app?',
+        'What features are available?'
+      ]);
+    }
   }, []);
 
   // Scroll to bottom when messages change
@@ -48,7 +68,25 @@ export function SparkChatBubble() {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!message.trim() || !conversation) return;
+    // Validate input and conversation
+    if (!message.trim()) return;
+
+    if (!conversation) {
+      // If conversation is null, try to initialize it again
+      try {
+        const newConversation = initializeConversation();
+        setConversation(newConversation);
+      } catch (error) {
+        console.error('Failed to initialize conversation:', error);
+        setMessages((prev) => [...prev, {
+          id: Date.now().toString(),
+          content: "I'm having trouble connecting. Please refresh the page and try again.",
+          sender: 'spark',
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -66,13 +104,16 @@ export function SparkChatBubble() {
       isLoading: true,
     };
 
+    // Store the message text before clearing the input
+    const messageText = message;
+
     setMessages((prev) => [...prev, userMessage, loadingMessage]);
     setMessage('');
     setIsLoading(true);
 
     try {
       // Send message to Spark service
-      const response = await sendMessage(conversation.id, message);
+      const response = await sendMessage(conversation!.id, messageText);
 
       // Remove loading message and add response
       setMessages((prev) => {
@@ -179,7 +220,62 @@ export function SparkChatBubble() {
                           size="sm"
                           onClick={() => {
                             setMessage(suggestion);
-                            handleSendMessage();
+                            // We need to use setTimeout to ensure the message state is updated
+                            // before we call handleSendMessage
+                            setTimeout(() => {
+                              const userMessage: Message = {
+                                id: Date.now().toString(),
+                                content: suggestion,
+                                sender: 'user',
+                                timestamp: new Date(),
+                              };
+
+                              // Add loading message
+                              const loadingMessage: Message = {
+                                id: (Date.now() + 1).toString(),
+                                content: '',
+                                sender: 'spark',
+                                timestamp: new Date(),
+                                isLoading: true,
+                              };
+
+                              setMessages((prev) => [...prev, userMessage, loadingMessage]);
+                              setMessage('');
+                              setIsLoading(true);
+
+                              // Send the suggestion to the Spark service
+                              if (conversation) {
+                                sendMessage(conversation.id, suggestion)
+                                  .then(response => {
+                                    // Remove loading message and add response
+                                    setMessages((prev) => {
+                                      const filtered = prev.filter(msg => !msg.isLoading);
+                                      return [...filtered, {
+                                        id: (Date.now() + 2).toString(),
+                                        content: response.message.content,
+                                        sender: 'spark',
+                                        timestamp: new Date(),
+                                      }];
+                                    });
+                                  })
+                                  .catch(error => {
+                                    console.error('Error sending suggestion:', error);
+                                    // Remove loading message and add error message
+                                    setMessages((prev) => {
+                                      const filtered = prev.filter(msg => !msg.isLoading);
+                                      return [...filtered, {
+                                        id: (Date.now() + 2).toString(),
+                                        content: "I'm sorry, I couldn't process your request. Please try again.",
+                                        sender: 'spark',
+                                        timestamp: new Date(),
+                                      }];
+                                    });
+                                  })
+                                  .finally(() => {
+                                    setIsLoading(false);
+                                  });
+                              }
+                            }, 0);
                           }}
                         >
                           {suggestion}

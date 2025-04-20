@@ -65,13 +65,21 @@ const Login = () => {
       console.error('Login failed:', error);
 
       // Specific error message for unconfirmed email
-      if (error.message?.includes('Email not confirmed')) {
+      if (error.message && error.message.includes('Email not confirmed')) {
         setIsEmailNotConfirmed(true);
         toast({
           title: "Email Not Verified",
           description: "Please verify your email address before logging in. Click 'Resend confirmation email' below.",
           variant: "destructive"
         });
+
+        // For admin emails, suggest they can still log in
+        if (isAdminEmail) {
+          toast({
+            title: "Admin Account Detected",
+            description: "As an admin, you can bypass email verification. Try logging in again."
+          });
+        }
       } else {
         setIsEmailNotConfirmed(false);
         toast({

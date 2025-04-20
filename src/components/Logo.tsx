@@ -12,15 +12,21 @@ export function Logo({ className = '', size = 'md' }: LogoProps) {
     lg: 'w-24 h-24'
   };
 
+  const [imgSrc, setImgSrc] = React.useState('/images/logo.png');
+  const [hasError, setHasError] = React.useState(false);
+
+  const handleError = () => {
+    console.log("Logo fallback to placeholder");
+    setImgSrc('/images/placeholder.svg');
+    setHasError(true);
+  };
+
   return (
     <img
-      src="/images/logo.png"
+      src={imgSrc}
       alt="UnShamed Logo"
-      className={`${sizeClasses[size]} ${className}`}
-      onError={(e) => {
-        console.log("Logo fallback to placeholder");
-        e.currentTarget.src = "/images/placeholder.svg";
-      }}
+      className={`${sizeClasses[size]} ${className} ${hasError ? 'rounded-full' : ''}`}
+      onError={handleError}
     />
   );
 }

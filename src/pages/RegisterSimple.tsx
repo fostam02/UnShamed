@@ -16,7 +16,7 @@ const RegisterSimple = () => {
     // Reset states
     setError('');
     setSuccess('');
-    
+
     // Basic validation
     if (!username || !email || !password || !confirmPassword) {
       setError('Please fill out all fields');
@@ -33,11 +33,16 @@ const RegisterSimple = () => {
 
     try {
       console.log('Attempting to register with:', { email, username });
-      
-      // Direct Supabase registration with minimal options
+
+      // Direct Supabase registration with user metadata
       const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: {
+            full_name: username
+          }
+        }
       });
 
       if (error) {
@@ -45,10 +50,38 @@ const RegisterSimple = () => {
       }
 
       console.log('Registration successful:', data);
-      
-      // Skip profile creation entirely
+
+      // Create a profile for the user
+      if (data.user) {
+        try {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: data.user.id,
+                email: email,
+                first_name: username,
+                last_name: '',
+                role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
+                is_profile_complete: false,
+                licenses: []
+              }
+            ]);
+
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+            // Continue anyway - the login process can handle missing profiles
+          } else {
+            console.log('Profile created successfully');
+          }
+        } catch (profileError) {
+          console.error('Error in profile creation:', profileError);
+          // Continue anyway - the login process can handle missing profiles
+        }
+      }
+
       setSuccess('Account created successfully! Redirecting to login...');
-      
+
       // Redirect to login page after a short delay
       setTimeout(() => {
         navigate('/login');
@@ -62,11 +95,11 @@ const RegisterSimple = () => {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center', 
+      alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
       backgroundColor: '#0f172a'
@@ -79,24 +112,24 @@ const RegisterSimple = () => {
         padding: '24px',
         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
       }}>
-        <h1 style={{ 
-          fontSize: '24px', 
+        <h1 style={{
+          fontSize: '24px',
           fontWeight: 'bold',
           color: 'white',
           marginBottom: '8px',
           textAlign: 'center'
         }}>Create Account</h1>
-        
-        <p style={{ 
-          fontSize: '14px', 
+
+        <p style={{
+          fontSize: '14px',
           color: '#94a3b8',
           marginBottom: '24px',
           textAlign: 'center'
         }}>Register to start tracking your compliance status</p>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -122,8 +155,8 @@ const RegisterSimple = () => {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -149,8 +182,8 @@ const RegisterSimple = () => {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -176,8 +209,8 @@ const RegisterSimple = () => {
         </div>
 
         <div style={{ marginBottom: '24px' }}>
-          <label style={{ 
-            display: 'block', 
+          <label style={{
+            display: 'block',
             marginBottom: '8px',
             fontSize: '14px',
             fontWeight: 'medium',
@@ -259,7 +292,7 @@ const RegisterSimple = () => {
           Already have an account?
         </div>
 
-        <Link 
+        <Link
           to="/login"
           style={{
             display: 'block',
