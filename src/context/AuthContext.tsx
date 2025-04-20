@@ -117,15 +117,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         // Fetch user profile from profiles table
-        const { data: profileData, error: profileError } = await supabase
+        let profileData: any = null;
+        const { data: fetchedProfile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
 
-        if (profileError && profileError.code !== 'PGRST116') {
+        if (profileError) {
           console.error('Error fetching profile:', profileError);
-          throw profileError;
+
+          // If the profile doesn't exist, create a default one in memory
+          if (profileError.code === 'PGRST116') {
+            console.log('Profile not found, creating default profile');
+            profileData = {
+              first_name: data.user.email?.split('@')[0] || 'User',
+              last_name: '',
+              role: data.user.email?.toLowerCase().includes('admin') ? 'admin' : 'user',
+              is_profile_complete: false,
+              licenses: []
+            };
+          } else {
+            throw profileError;
+          }
+        } else {
+          profileData = fetchedProfile;
         }
 
         // Create user profile from Supabase data

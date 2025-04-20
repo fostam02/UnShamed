@@ -14,7 +14,7 @@ import { StateDetails } from '@/pages/StateDetails';
 import { StateProfiles } from '@/pages/StateProfiles';
 import { AdminDashboard, AISettings, UserManagement, SecuritySettings, NotificationSettings, DatabaseManagement } from '@/pages/admin';
 import Login from '@/pages/Login';
-import RegisterNew from '@/pages/RegisterNew';
+import RegisterSimple from '@/pages/RegisterSimple';
 import ForgotPassword from '@/pages/ForgotPassword';
 import Dashboard from '@/pages/Dashboard';
 import Profile from '@/pages/Profile';
@@ -33,7 +33,7 @@ function App() {
                 <Routes>
                   {/* Public routes */}
                   <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<RegisterNew />} />
+                  <Route path="/register" element={<RegisterSimple />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
 
                   {/* Protected routes */}
