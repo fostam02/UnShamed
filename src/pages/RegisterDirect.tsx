@@ -82,21 +82,51 @@ const RegisterDirect = () => {
         last_name: '',
         role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
         is_profile_complete: false,
-        licenses: [],
-        password_hash: passwordHash // Store the password hash
+        licenses: JSON.stringify([]), // Make sure licenses is properly formatted as JSON string
+        password_hash: passwordHash, // Store the password hash
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
+
+      console.log('User data being sent to database:', JSON.stringify(userData));
 
       console.log('Creating user profile directly in database');
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .insert([userData])
-        .select();
+      let profileData;
+      let profileError;
+
+      try {
+        // Wrap the database operation in a try-catch to handle any unexpected errors
+        const result = await supabase
+          .from('profiles')
+          .insert([userData])
+          .select();
+
+        profileData = result.data;
+        profileError = result.error;
+      } catch (dbError) {
+        console.error('Unexpected database error:', dbError);
+        setError(`Database error: ${dbError.message || 'Unknown error'}`);
+        setIsLoading(false);
+        return;
+      }
 
       if (profileError) {
         console.error('Error creating profile:', profileError);
         console.log('Profile error details:', JSON.stringify(profileError));
-        setError('Failed to create account: ' + (profileError.message || 'Unknown error'));
+
+        // Provide more specific error messages based on the error code
+        if (profileError.code === '23505') {
+          setError('An account with this email already exists');
+        } else if (profileError.code === '23502') {
+          setError('Missing required fields. Please fill out all fields.');
+        } else if (profileError.code === '22P02') {
+          setError('Invalid data format. Please try again with valid information.');
+        } else {
+          // Include the error code and message for better debugging
+          setError(`Failed to create account: ${profileError.message || 'Unknown error'} (Code: ${profileError.code || 'none'})`);
+        }
+
         setIsLoading(false);
         return;
       }
@@ -149,10 +179,12 @@ const RegisterDirect = () => {
         firstName: username,
         lastName: '',
         email: email.toLowerCase(),
-        licenses: [],
+        licenses: [], // Empty array for licenses
         isProfileComplete: false,
         role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
       };
+
+      console.log('User profile for localStorage:', JSON.stringify(userProfile));
 
       localStorage.setItem('authUser', JSON.stringify({
         isAuthenticated: true,
