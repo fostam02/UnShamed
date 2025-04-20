@@ -75,6 +75,7 @@ const RegisterDirect = () => {
       const passwordHash = btoa(password); // Base64 encoding for demo
 
       // Create the user profile directly in the profiles table
+      // For the deployed version, we need to be more careful with the data types
       const userData = {
         id: userId,
         email: email.toLowerCase(),
@@ -82,7 +83,9 @@ const RegisterDirect = () => {
         last_name: '',
         role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
         is_profile_complete: false,
-        licenses: JSON.stringify([]), // Make sure licenses is properly formatted as JSON string
+        // Handle licenses field differently based on environment
+        // Some environments expect a JSON string, others expect a JSONB object
+        licenses: [], // Use empty array directly - Supabase will handle conversion
         password_hash: passwordHash, // Store the password hash
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -97,13 +100,43 @@ const RegisterDirect = () => {
 
       try {
         // Wrap the database operation in a try-catch to handle any unexpected errors
-        const result = await supabase
+        console.log('Attempting to insert user profile with ID:', userId);
+
+        // First try with the standard approach
+        let result = await supabase
           .from('profiles')
           .insert([userData])
           .select();
 
-        profileData = result.data;
-        profileError = result.error;
+        // If there's an error, try a fallback approach without the select
+        if (result.error) {
+          console.log('First insert attempt failed, trying fallback approach');
+          console.log('Error from first attempt:', result.error);
+
+          // Try without the select() call which can sometimes cause issues
+          const fallbackResult = await supabase
+            .from('profiles')
+            .insert([userData]);
+
+          if (fallbackResult.error) {
+            console.log('Fallback insert also failed:', fallbackResult.error);
+            profileError = fallbackResult.error;
+          } else {
+            console.log('Fallback insert succeeded');
+            // Manually fetch the profile we just created
+            const fetchResult = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .single();
+
+            profileData = fetchResult.data ? [fetchResult.data] : null;
+            profileError = fetchResult.error;
+          }
+        } else {
+          profileData = result.data;
+          profileError = result.error;
+        }
       } catch (dbError) {
         console.error('Unexpected database error:', dbError);
         setError(`Database error: ${dbError.message || 'Unknown error'}`);
@@ -115,20 +148,51 @@ const RegisterDirect = () => {
         console.error('Error creating profile:', profileError);
         console.log('Profile error details:', JSON.stringify(profileError));
 
-        // Provide more specific error messages based on the error code
-        if (profileError.code === '23505') {
-          setError('An account with this email already exists');
-        } else if (profileError.code === '23502') {
-          setError('Missing required fields. Please fill out all fields.');
-        } else if (profileError.code === '22P02') {
-          setError('Invalid data format. Please try again with valid information.');
-        } else {
-          // Include the error code and message for better debugging
-          setError(`Failed to create account: ${profileError.message || 'Unknown error'} (Code: ${profileError.code || 'none'})`);
-        }
+        // Try one last approach - direct SQL insert as a last resort
+        try {
+          console.log('Attempting direct SQL insert as last resort');
 
-        setIsLoading(false);
-        return;
+          // Create a simplified user object with only the essential fields
+          const minimalUserData = {
+            id: userId,
+            email: email.toLowerCase(),
+            first_name: username,
+            role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
+            password_hash: passwordHash
+          };
+
+          // Use RPC to insert the user directly
+          const { error: rpcError } = await supabase.rpc('create_profile_direct', {
+            profile_data: minimalUserData
+          });
+
+          if (rpcError) {
+            console.error('Final fallback also failed:', rpcError);
+
+            // Now provide specific error messages based on the error code
+            if (profileError.code === '23505') {
+              setError('An account with this email already exists');
+            } else if (profileError.code === '23502') {
+              setError('Missing required fields. Please fill out all fields.');
+            } else if (profileError.code === '22P02') {
+              setError('Invalid data format. Please try again with valid information.');
+            } else {
+              // Include the error code and message for better debugging
+              setError(`Failed to create account: ${profileError.message || 'Unknown error'} (Code: ${profileError.code || 'none'})`);
+            }
+
+            setIsLoading(false);
+            return;
+          } else {
+            console.log('Direct SQL insert succeeded');
+            // Continue with the registration process
+          }
+        } catch (finalError) {
+          console.error('Final fallback attempt failed:', finalError);
+          setError(`Failed to create account: ${finalError.message || 'Unknown error'}`);
+          setIsLoading(false);
+          return;
+        }
       }
 
       console.log('Profile created successfully:', profileData);

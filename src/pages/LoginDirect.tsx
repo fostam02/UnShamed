@@ -65,11 +65,41 @@ const LoginDirect = () => {
       }
 
       // First try to find the user in our profiles table
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .single();
+      let profileData;
+      let profileError;
+
+      try {
+        console.log('Searching for user in profiles table');
+        const result = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', email.toLowerCase())
+          .single();
+
+        profileData = result.data;
+        profileError = result.error;
+
+        if (profileError) {
+          console.log('Error finding user in profiles table:', profileError);
+          // Try a fallback approach with a direct SQL query
+          console.log('Trying fallback approach with direct SQL');
+
+          const { data: sqlData, error: sqlError } = await supabase.rpc('find_user_by_email', {
+            user_email: email.toLowerCase()
+          });
+
+          if (!sqlError && sqlData) {
+            console.log('Found user via direct SQL');
+            profileData = sqlData;
+            profileError = null;
+          } else {
+            console.log('Fallback approach also failed:', sqlError);
+          }
+        }
+      } catch (searchError) {
+        console.error('Exception during user search:', searchError);
+        // Continue with standard flow
+      }
 
       if (profileError) {
         console.log('User not found in profiles, trying Supabase auth');
