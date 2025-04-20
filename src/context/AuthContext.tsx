@@ -31,31 +31,124 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  // Load auth state from localStorage on initial render
+  // Load auth state from localStorage and verify with Supabase
   useEffect(() => {
-    try {
-      const savedAuth = localStorage.getItem('authUser');
-      if (savedAuth) {
-        try {
-          const { isAuthenticated: savedIsAuth, userProfile: savedProfile } = JSON.parse(savedAuth);
-          if (savedIsAuth && savedProfile) {
-            console.log('Found stored auth session');
-            setIsAuthenticated(savedIsAuth);
-            setUserProfile(savedProfile);
-          } else {
-            // Invalid stored auth data
+    const loadAuthState = async () => {
+      try {
+        // First check localStorage
+        const savedAuth = localStorage.getItem('authUser');
+        let localAuthValid = false;
+        let localUserProfile = null;
+
+        if (savedAuth) {
+          try {
+            const { isAuthenticated: savedIsAuth, userProfile: savedProfile } = JSON.parse(savedAuth);
+            if (savedIsAuth && savedProfile) {
+              console.log('Found stored auth session');
+              localAuthValid = true;
+              localUserProfile = savedProfile;
+            } else {
+              // Invalid stored auth data
+              console.log('Invalid stored auth data, removing');
+              localStorage.removeItem('authUser');
+            }
+          } catch (parseError) {
+            console.error('Error parsing stored auth:', parseError);
             localStorage.removeItem('authUser');
           }
-        } catch (parseError) {
-          console.error('Error parsing stored auth:', parseError);
-          localStorage.removeItem('authUser');
         }
+
+        // Then check Supabase session
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('Error getting Supabase session:', sessionError);
+          // If there's an error but we have local auth, use that
+          if (localAuthValid) {
+            setIsAuthenticated(true);
+            setUserProfile(localUserProfile);
+          }
+        } else if (sessionData?.session) {
+          console.log('Found active Supabase session');
+
+          // We have an active Supabase session
+          const userId = sessionData.session.user.id;
+
+          // If we have local auth with matching ID, use that
+          if (localAuthValid && localUserProfile.id === userId) {
+            setIsAuthenticated(true);
+            setUserProfile(localUserProfile);
+          } else {
+            // Otherwise fetch the profile from Supabase
+            try {
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+              if (profileError) {
+                console.error('Error fetching profile from Supabase:', profileError);
+                // Create a default profile
+                const defaultProfile: UserProfile = {
+                  id: userId,
+                  firstName: sessionData.session.user.email?.split('@')[0] || 'User',
+                  lastName: '',
+                  email: sessionData.session.user.email || '',
+                  licenses: [],
+                  isProfileComplete: false,
+                  role: sessionData.session.user.email?.toLowerCase().includes('admin') ? 'admin' : 'user'
+                };
+
+                setIsAuthenticated(true);
+                setUserProfile(defaultProfile);
+
+                // Save to localStorage
+                localStorage.setItem('authUser', JSON.stringify({
+                  isAuthenticated: true,
+                  userProfile: defaultProfile
+                }));
+              } else {
+                // Create user profile from Supabase data
+                const userProfile: UserProfile = {
+                  id: userId,
+                  firstName: profileData.first_name || '',
+                  lastName: profileData.last_name || '',
+                  email: sessionData.session.user.email || '',
+                  licenses: profileData.licenses || [],
+                  isProfileComplete: !!profileData.is_profile_complete,
+                  role: profileData.role as 'admin' | 'user' || 'user'
+                };
+
+                setIsAuthenticated(true);
+                setUserProfile(userProfile);
+
+                // Save to localStorage
+                localStorage.setItem('authUser', JSON.stringify({
+                  isAuthenticated: true,
+                  userProfile
+                }));
+              }
+            } catch (error) {
+              console.error('Error in profile fetch process:', error);
+            }
+          }
+        } else {
+          console.log('No active Supabase session found');
+          // No Supabase session, but we might have valid local auth
+          if (localAuthValid) {
+            setIsAuthenticated(true);
+            setUserProfile(localUserProfile);
+          }
+        }
+      } catch (err) {
+        console.error('Error in auth state loading process:', err);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      console.error('Error loading auth state from localStorage:', err);
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    loadAuthState();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -63,19 +156,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Attempting login for:', email);
 
       // Special handling for admin emails to set the role
-      const isAdminEmail = email.toLowerCase().includes('admin') || email.toLowerCase() === 'nestertester5@testing.org' || email.toLowerCase() === 'gamedesign2030@gmail.com';
+      const isAdminEmail = email.toLowerCase().includes('admin') ||
+                          email.toLowerCase() === 'nestertester5@testing.org' ||
+                          email.toLowerCase() === 'gamedesign2030@gmail.com';
 
       if (isAdminEmail) {
         console.log('Admin email detected:', email);
       }
 
-      // Standard login flow for non-admin users or if admin bypass didn't apply
+      // First check if this user exists in the profiles table with direct password
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', email.toLowerCase())
+          .single();
+
+        if (!profileError && profileData && profileData.password_hash) {
+          console.log('Found user in profiles table with password_hash');
+
+          // Check if password matches (simple check for demo purposes)
+          const inputPasswordHash = btoa(password);
+
+          if (profileData.password_hash === inputPasswordHash) {
+            console.log('Password matches, creating session');
+
+            // Create user profile
+            const userProfile: UserProfile = {
+              id: profileData.id,
+              firstName: profileData.first_name || '',
+              lastName: profileData.last_name || '',
+              email: profileData.email || '',
+              licenses: profileData.licenses || [],
+              isProfileComplete: !!profileData.is_profile_complete,
+              role: profileData.role as 'admin' | 'user' || 'user'
+            };
+
+            setIsAuthenticated(true);
+            setUserProfile(userProfile);
+
+            // Save to localStorage
+            localStorage.setItem('authUser', JSON.stringify({
+              isAuthenticated: true,
+              userProfile
+            }));
+
+            return { user: userProfile };
+          }
+        }
+      } catch (directLoginError) {
+        console.log('Error in direct login attempt:', directLoginError);
+        // Continue to standard Supabase auth
+      }
+
+      // Standard login flow using Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('Supabase auth error:', error);
         throw error;
       }
 
@@ -222,22 +363,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        throw error;
-      }
-
-      // Clear local state
+      // First clear local state
       setIsAuthenticated(false);
       setUserProfile(null);
-
-      // Clear localStorage
       localStorage.removeItem('authUser');
+
+      // Then sign out from Supabase
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error('Error signing out from Supabase:', error);
+          // Continue anyway since we've already cleared local state
+        }
+      } catch (supabaseError) {
+        console.error('Exception during Supabase signOut:', supabaseError);
+        // Continue anyway since we've already cleared local state
+      }
+
+      console.log('Logout successful');
     } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
+      console.error('Error in logout process:', error);
+      // Even if there's an error, try to clear local state
+      try {
+        setIsAuthenticated(false);
+        setUserProfile(null);
+        localStorage.removeItem('authUser');
+      } catch (clearError) {
+        console.error('Error clearing local state during logout:', clearError);
+      }
     }
   };
 

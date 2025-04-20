@@ -82,6 +82,7 @@ export interface UserProfile {
   race?: string;
   gamificationData?: GamificationData;
   consentToShare?: boolean;
+  role?: 'admin' | 'user';
 }
 
 export interface License {

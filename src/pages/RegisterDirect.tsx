@@ -188,7 +188,22 @@ const RegisterDirect = () => {
         return;
       }
 
-      console.log('Registration completed successfully');
+      // Get the user ID from the auth data
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser || !currentUser.user) {
+        console.error('Unable to get current user after registration');
+        setError('Account created but unable to log in automatically. Please try logging in manually.');
+        setIsLoading(false);
+
+        // Redirect to login page after a short delay
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+        return;
+      }
+
+      const userId = currentUser.user.id;
+      console.log('Registration completed successfully with user ID:', userId);
 
       // Store auth info in localStorage
       const userProfile = {
