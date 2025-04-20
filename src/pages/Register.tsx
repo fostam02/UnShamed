@@ -19,9 +19,9 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Register form submitted');
+  const handleRegister = async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    if (e) e.preventDefault();
+    console.log('Register button clicked');
 
     // Validate form
     if (!username || !email || !password || !confirmPassword) {
@@ -131,7 +131,7 @@ const Register = () => {
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleRegister} className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
                 <div className="relative">
@@ -194,14 +194,14 @@ const Register = () => {
 
               <Button
                 type="button"
-                className="w-full"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 transition-colors"
                 disabled={isLoading}
                 onClick={handleRegister}
               >
                 {isLoading ? 'Creating Account...' : 'Create Account'}
                 {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
-            </form>
+            </div>
           </CardContent>
 
           <CardFooter className="flex-col space-y-4">
