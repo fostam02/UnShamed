@@ -269,7 +269,7 @@ const LoginDirect = () => {
           return;
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unexpected error during login:', error);
 
       // Special handling for admin emails even if there's an unexpected error
@@ -306,11 +306,8 @@ const LoginDirect = () => {
         return;
       }
 
-      setError('An unexpected error occurred. Please try again.');
+      setError(error?.message || 'An unexpected error occurred. Please try again.');
       return;
-    } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error?.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
