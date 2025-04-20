@@ -62,59 +62,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Attempting login for:', email);
 
-      // Special bypass for admin emails and specific test emails in development environment
-      if (email.toLowerCase().includes('admin') || email.toLowerCase() === 'nestertester5@testing.org') {
-        console.log('Attempting admin login with bypass for email confirmation');
+      // Special handling for admin emails to set the role
+      const isAdminEmail = email.toLowerCase().includes('admin') || email.toLowerCase() === 'nestertester5@testing.org' || email.toLowerCase() === 'gamedesign2030@gmail.com';
 
-        try {
-          // For admin emails, we'll try to sign in normally first
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          // If login succeeds, continue with normal flow
-          if (data?.user && !error) {
-            // Normal login will continue below
-            console.log('Admin login successful without bypass');
-          }
-          // If the error is specifically about email confirmation for admin accounts
-          else if (error && error.message && error.message.includes('Email not confirmed')) {
-            console.log('Bypassing email confirmation for admin account');
-
-            // Create a mock user profile for the admin
-            const adminProfile: UserProfile = {
-              id: `admin_${Date.now()}`,
-              firstName: 'Admin',
-              lastName: 'User',
-              email: email,
-              licenses: [],
-              isProfileComplete: true,
-              role: 'admin'
-            };
-
-            setIsAuthenticated(true);
-            setUserProfile(adminProfile);
-
-            // Save to localStorage for persistence
-            localStorage.setItem('authUser', JSON.stringify({
-              isAuthenticated: true,
-              userProfile: adminProfile
-            }));
-
-            return { user: adminProfile };
-          }
-          // If there's another error, throw it
-          else if (error) {
-            throw error;
-          }
-        } catch (adminError) {
-          console.error('Admin login error:', adminError);
-          // If there's an error other than email confirmation, we'll throw it
-          if (adminError instanceof Error && adminError.message && !adminError.message.includes('Email not confirmed')) {
-            throw adminError;
-          }
-        }
+      if (isAdminEmail) {
+        console.log('Admin email detected:', email);
       }
 
       // Standard login flow for non-admin users or if admin bypass didn't apply
@@ -302,54 +254,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   };
 
-  const resendConfirmationEmail = async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      toast('Confirmation email sent! Please check your inbox.');
-    } catch (error) {
-      console.error('Error resending confirmation email:', error);
-      throw error;
-    }
+  // Email confirmation is now disabled at the database level
+  const resendConfirmationEmail = async (_email: string) => {
+    // This function is now a no-op since email confirmation is disabled
+    toast('Email confirmation is not required.');
+    return;
   };
 
-  const checkEmailConfirmation = async (email: string): Promise<boolean> => {
-    try {
-      // Supabase doesn't provide a direct way to check email confirmation
-      // We'll try to sign in with an invalid password and check if the error is about confirmation
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password: 'invalid_password_to_check_confirmation',
-      });
-
-      // If the error mentions email not confirmed, we know it's not confirmed
-      if (error && error.message && error.message.includes('Email not confirmed')) {
-        console.log('Email not confirmed:', email);
-        return false;
-      }
-
-      // Special case for admin emails and specific test emails - always consider them confirmed
-      if (email.toLowerCase().includes('admin') || email.toLowerCase() === 'nestertester5@testing.org') {
-        console.log('Admin or test email detected, considering it confirmed');
-        return true;
-      }
-
-      // If we get any other error (like invalid credentials), the email is likely confirmed
-      // but the password is wrong, which is what we expect
-      console.log('Email appears to be confirmed:', email);
-      return true;
-    } catch (error) {
-      console.error('Error checking email confirmation:', error);
-      // Default to true to avoid blocking users unnecessarily
-      return true;
-    }
+  // Email confirmation is now disabled at the database level
+  const checkEmailConfirmation = async (_email: string): Promise<boolean> => {
+    // Always return true since email confirmation is disabled
+    return true;
   };
 
   if (isLoading) {

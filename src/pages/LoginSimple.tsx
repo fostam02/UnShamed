@@ -16,7 +16,7 @@ interface LocationState {
 const LoginSimple = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +29,7 @@ const LoginSimple = () => {
 
   // Check if the email is an admin email or a special test email
   const checkIfAdminEmail = (email: string) => {
-    return email.toLowerCase().includes('admin') || 
+    return email.toLowerCase().includes('admin') ||
            email.toLowerCase() === 'nestertester5@testing.org' ||
            email.toLowerCase() === 'gamedesign2030@gmail.com';
   };
@@ -53,21 +53,21 @@ const LoginSimple = () => {
 
     try {
       console.log('Attempting login for:', email);
-      
+
       // Check if this is a special email that should bypass normal authentication
       if (isAdminEmail) {
         console.log('Special email detected, checking profiles table first');
-        
+
         // First check if the user exists in the profiles table
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('email', email)
           .single();
-          
+
         if (!profileError && profileData) {
           console.log('Profile found, creating session manually');
-          
+
           // Create a user profile
           const userProfile = {
             id: profileData.id,
@@ -78,24 +78,24 @@ const LoginSimple = () => {
             isProfileComplete: !!profileData.is_profile_complete,
             role: profileData.role || 'user'
           };
-          
+
           // Store in localStorage to simulate a logged-in user
           localStorage.setItem('authUser', JSON.stringify({
             isAuthenticated: true,
             userProfile
           }));
-          
+
           setSuccess('Login successful! Redirecting...');
-          
+
           // Redirect to the page they were trying to access
           setTimeout(() => {
             navigate(from);
           }, 1000);
-          
+
           return;
         }
       }
-      
+
       // Standard login flow if special handling didn't apply
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -103,58 +103,23 @@ const LoginSimple = () => {
       });
 
       if (error) {
-        // Special handling for email confirmation errors
-        if (error.message && error.message.includes('Email not confirmed')) {
-          if (isAdminEmail) {
-            // For admin emails, we'll bypass the confirmation
-            console.log('Bypassing email confirmation for admin account');
-            
-            // Create a mock user profile
-            const adminProfile = {
-              id: `admin_${Date.now()}`,
-              firstName: 'Admin',
-              lastName: 'User',
-              email: email,
-              licenses: [],
-              isProfileComplete: true,
-              role: 'admin'
-            };
-            
-            // Store in localStorage
-            localStorage.setItem('authUser', JSON.stringify({
-              isAuthenticated: true,
-              userProfile: adminProfile
-            }));
-            
-            setSuccess('Login successful! Redirecting...');
-            
-            // Redirect to the page they were trying to access
-            setTimeout(() => {
-              navigate(from);
-            }, 1000);
-            
-            return;
-          } else {
-            setError('Email not confirmed. Please check your inbox for a verification email.');
-          }
-        } else {
-          throw error;
-        }
+        // No special handling for email confirmation errors since we've disabled them
+        throw error;
       } else if (data.user) {
         console.log('Login successful:', data);
-        
+
         // Fetch user profile from profiles table
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
-          
+
         let userProfile;
-        
+
         if (profileError) {
           console.error('Error fetching profile:', profileError);
-          
+
           // If the profile doesn't exist, create a default one
           userProfile = {
             id: data.user.id,
@@ -176,15 +141,15 @@ const LoginSimple = () => {
             role: profileData.role || 'user'
           };
         }
-        
+
         // Store in localStorage
         localStorage.setItem('authUser', JSON.stringify({
           isAuthenticated: true,
           userProfile
         }));
-        
+
         setSuccess('Login successful! Redirecting...');
-        
+
         // Redirect to the page they were trying to access
         setTimeout(() => {
           navigate(from);
@@ -198,31 +163,9 @@ const LoginSimple = () => {
     }
   };
 
+  // Email confirmation is now disabled, so this function is no longer needed
   const handleResendConfirmation = async () => {
-    if (!email) {
-      setError('Please enter your email address first');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setSuccess('Confirmation email sent! Please check your inbox.');
-    } catch (error: any) {
-      console.error('Error resending confirmation email:', error);
-      setError(error?.message || 'Could not resend confirmation email');
-    } finally {
-      setIsLoading(false);
-    }
+    setSuccess('Email confirmation is not required.');
   };
 
   return (
@@ -295,27 +238,7 @@ const LoginSimple = () => {
               {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
             </Button>
 
-            {error && error.includes('Email not confirmed') && (
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                <p className="text-sm text-amber-800 mb-2">
-                  Your email address has not been verified. Please check your inbox for a verification email or click below to receive a new one.
-                </p>
-                {isAdminEmail && (
-                  <p className="text-sm text-green-700 mb-2">
-                    <strong>Special account detected:</strong> Email confirmation will be bypassed. You can proceed with login.
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleResendConfirmation}
-                  className="w-full text-sm bg-amber-100 hover:bg-amber-200 border-amber-300"
-                  disabled={isLoading}
-                >
-                  Resend confirmation email
-                </Button>
-              </div>
-            )}
+            {/* Email confirmation section removed as it's no longer needed */}
           </form>
 
           <div className="mt-6 text-center space-y-4">
@@ -326,15 +249,7 @@ const LoginSimple = () => {
               </Link>
             </p>
 
-            <Button
-              type="button"
-              variant="link"
-              onClick={handleResendConfirmation}
-              className="text-sm text-muted-foreground hover:text-primary"
-              disabled={!email || isLoading}
-            >
-              Resend confirmation email
-            </Button>
+            {/* Resend confirmation button removed as it's no longer needed */}
           </div>
         </div>
 
