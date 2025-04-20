@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 const RegisterDirect = () => {
   const navigate = useNavigate();
@@ -71,39 +72,49 @@ const RegisterDirect = () => {
         console.log('Continuing with registration despite check exception');
       }
 
-      // Generate a unique user ID
-      const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      // Generate a proper UUID for the user ID
+      const userId = uuidv4();
 
       try {
+        // Log the data we're about to insert
+        const userData = {
+          id: userId,
+          email: email.toLowerCase(), // Store email in lowercase for consistency
+          first_name: username,
+          last_name: '',
+          role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
+          is_profile_complete: false,
+          licenses: [],
+          password_hash: btoa(password) // Simple encoding, not secure but works for demo
+        };
+
+        console.log('Attempting to create profile with data:', JSON.stringify(userData));
+
         // Create a profile directly in the database
-        const { error: profileError } = await supabase
+        const { data: insertData, error: profileError } = await supabase
           .from('profiles')
-          .insert([
-            {
-              id: userId,
-              email: email.toLowerCase(), // Store email in lowercase for consistency
-              first_name: username,
-              last_name: '',
-              role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
-              is_profile_complete: false,
-              licenses: [],
-              password_hash: btoa(password) // Simple encoding, not secure but works for demo
-            }
-          ]);
+          .insert([userData])
+          .select();
 
         if (profileError) {
           console.error('Error creating profile:', profileError);
           if (profileError.code === '23505') { // Unique violation error code
             setError('An account with this email already exists');
           } else {
-            setError('Failed to create user profile: ' + profileError.message);
+            console.log('Profile error details:', JSON.stringify(profileError));
+            setError('Failed to create user profile: ' + (profileError.message || 'Unknown error'));
           }
           setIsLoading(false);
           return;
         }
-      } catch (insertErr) {
+
+        console.log('Profile created successfully:', insertData);
+      } catch (insertErr: any) {
         console.error('Exception during profile creation:', insertErr);
-        setError('Failed to create user profile due to a server error');
+        // Provide more detailed error information
+        const errorMessage = insertErr?.message || 'Unknown error';
+        console.log('Error details:', JSON.stringify(insertErr));
+        setError(`Failed to create user profile: ${errorMessage}`);
         setIsLoading(false);
         return;
       }
@@ -134,6 +145,7 @@ const RegisterDirect = () => {
       }, 2000);
     } catch (error: any) {
       console.error('Registration error:', error);
+      console.log('Full error details:', JSON.stringify(error));
       setError(error?.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
