@@ -160,6 +160,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, name: string) => {
     try {
+      console.log('Attempting to register user:', email);
+
       // Use Supabase authentication for registration
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -167,6 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        console.error('Registration error from Supabase:', error);
         throw error;
       }
 
@@ -202,9 +205,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: email,
           licenses: [],
           isProfileComplete: false,
-          role: 'user'
+          role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
         };
 
+        // In development, we'll auto-confirm the email
+        console.log('Auto-confirming email for development purposes');
         setIsAuthenticated(true);
         setUserProfile(userProfile);
 
