@@ -36,9 +36,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const savedAuth = localStorage.getItem('authUser');
       if (savedAuth) {
-        const { isAuthenticated: savedIsAuth, userProfile: savedProfile } = JSON.parse(savedAuth);
-        setIsAuthenticated(savedIsAuth);
-        setUserProfile(savedProfile);
+        try {
+          const { isAuthenticated: savedIsAuth, userProfile: savedProfile } = JSON.parse(savedAuth);
+          if (savedIsAuth && savedProfile) {
+            console.log('Found stored auth session');
+            setIsAuthenticated(savedIsAuth);
+            setUserProfile(savedProfile);
+          } else {
+            // Invalid stored auth data
+            localStorage.removeItem('authUser');
+          }
+        } catch (parseError) {
+          console.error('Error parsing stored auth:', parseError);
+          localStorage.removeItem('authUser');
+        }
       }
     } catch (err) {
       console.error('Error loading auth state from localStorage:', err);

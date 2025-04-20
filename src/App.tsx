@@ -14,7 +14,7 @@ import { AddState } from '@/pages/AddState';
 import { StateDetails } from '@/pages/StateDetails';
 import { StateProfiles } from '@/pages/StateProfiles';
 import { AdminDashboard, AISettings, UserManagement, SecuritySettings, NotificationSettings, DatabaseManagement } from '@/pages/admin';
-import Login from '@/pages/Login';
+import LoginSimple from '@/pages/LoginSimple';
 import RegisterNoLimit from '@/pages/RegisterNoLimit';
 import ForgotPassword from '@/pages/ForgotPassword';
 import Dashboard from '@/pages/Dashboard';
@@ -33,7 +33,7 @@ function App() {
               <div className="min-h-screen bg-background">
                 <Routes>
                   {/* Public routes */}
-                  <Route path="/login" element={<Login />} />
+                  <Route path="/login" element={<LoginSimple />} />
                   <Route path="/register" element={<RegisterNoLimit />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
 
