@@ -72,61 +72,130 @@ const RegisterDirect = () => {
         console.log('Continuing with registration despite check exception');
       }
 
-      // Generate a proper UUID for the user ID
-      const userId = uuidv4();
-
       try {
-        // Log the data we're about to insert
+        console.log('Creating user with Supabase Auth first');
+
+        // Step 1: Create the user with Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: email.toLowerCase(),
+          password: password,
+          options: {
+            data: {
+              full_name: username
+            }
+          }
+        });
+
+        if (authError) {
+          console.error('Error creating user with Supabase Auth:', authError);
+          if (authError.message.includes('User already registered')) {
+            setError('An account with this email already exists');
+          } else {
+            console.log('Auth error details:', JSON.stringify(authError));
+            setError('Failed to create account: ' + (authError.message || 'Unknown error'));
+          }
+          setIsLoading(false);
+          return;
+        }
+
+        if (!authData.user) {
+          console.error('No user returned from Supabase Auth');
+          setError('Failed to create account: No user ID returned');
+          setIsLoading(false);
+          return;
+        }
+
+        // Check if email confirmation is required
+        if (authData.user.email_confirmed_at === null) {
+          console.log('Email confirmation may be required, checking auto-confirm trigger');
+
+          // Wait a moment for the auto-confirm trigger to run
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Check if the email has been auto-confirmed
+          const { data: userData, error: userError } = await supabase.auth.getUser();
+
+          if (userError) {
+            console.error('Error checking user confirmation status:', userError);
+          } else if (userData.user && userData.user.email_confirmed_at === null) {
+            console.log('Email still not confirmed, attempting to force confirmation');
+
+            // Try to manually confirm the email with SQL
+            try {
+              const { error: confirmError } = await supabase.rpc('auto_confirm_email_manual', {
+                user_id: authData.user.id
+              });
+
+              if (confirmError) {
+                console.error('Error manually confirming email:', confirmError);
+              } else {
+                console.log('Email manually confirmed successfully');
+              }
+            } catch (confirmErr) {
+              console.error('Exception during manual email confirmation:', confirmErr);
+            }
+          } else {
+            console.log('Email has been auto-confirmed successfully');
+          }
+        }
+
+        const userId = authData.user.id;
+        console.log('User created successfully with ID:', userId);
+
+        // Step 2: Create the profile in the profiles table
         const userData = {
           id: userId,
-          email: email.toLowerCase(), // Store email in lowercase for consistency
+          email: email.toLowerCase(),
           first_name: username,
           last_name: '',
           role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
           is_profile_complete: false,
-          licenses: [],
-          password_hash: btoa(password) // Simple encoding, not secure but works for demo
+          licenses: []
         };
 
         console.log('Attempting to create profile with data:', JSON.stringify(userData));
 
-        // Create a profile directly in the database
-        const { data: insertData, error: profileError } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .insert([userData])
           .select();
 
         if (profileError) {
           console.error('Error creating profile:', profileError);
-          if (profileError.code === '23505') { // Unique violation error code
-            setError('An account with this email already exists');
-          } else {
-            console.log('Profile error details:', JSON.stringify(profileError));
-            setError('Failed to create user profile: ' + (profileError.message || 'Unknown error'));
-          }
+          console.log('Profile error details:', JSON.stringify(profileError));
+          setError('Account created but profile setup failed: ' + (profileError.message || 'Unknown error'));
           setIsLoading(false);
           return;
         }
 
-        console.log('Profile created successfully:', insertData);
+        console.log('Profile created successfully:', profileData);
       } catch (insertErr: any) {
-        console.error('Exception during profile creation:', insertErr);
+        console.error('Exception during registration process:', insertErr);
         // Provide more detailed error information
         const errorMessage = insertErr?.message || 'Unknown error';
         console.log('Error details:', JSON.stringify(insertErr));
-        setError(`Failed to create user profile: ${errorMessage}`);
+
+        // Check if this is a network error
+        if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          setError('Network error. Please check your internet connection and try again.');
+        } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+          setError('Permission denied. Please try again or contact support.');
+        } else {
+          setError(`Registration failed: ${errorMessage}`);
+        }
+
         setIsLoading(false);
         return;
       }
 
-      console.log('Profile created successfully, bypassing Supabase Auth');
+      console.log('Registration completed successfully');
 
-      // Store auth info in localStorage to simulate a logged-in user
+      // Store auth info in localStorage
       const userProfile = {
         id: userId,
         firstName: username,
         lastName: '',
-        email: email,
+        email: email.toLowerCase(),
         licenses: [],
         isProfileComplete: false,
         role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
@@ -136,6 +205,10 @@ const RegisterDirect = () => {
         isAuthenticated: true,
         userProfile
       }));
+
+      // Also set the session in Supabase
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log('Current session:', sessionData);
 
       setSuccess('Account created successfully! Redirecting to dashboard...');
 
