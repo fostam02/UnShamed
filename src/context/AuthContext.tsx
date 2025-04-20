@@ -51,8 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Attempting login for:', email);
 
-      // Special bypass for admin emails in development environment
-      if (email.toLowerCase().includes('admin')) {
+      // Special bypass for admin emails and specific test emails in development environment
+      if (email.toLowerCase().includes('admin') || email.toLowerCase() === 'nestertester5@testing.org') {
         console.log('Attempting admin login with bypass for email confirmation');
 
         try {
@@ -324,9 +324,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // Special case for admin emails - always consider them confirmed
-      if (email.toLowerCase().includes('admin')) {
-        console.log('Admin email detected, considering it confirmed');
+      // Special case for admin emails and specific test emails - always consider them confirmed
+      if (email.toLowerCase().includes('admin') || email.toLowerCase() === 'nestertester5@testing.org') {
+        console.log('Admin or test email detected, considering it confirmed');
         return true;
       }
 

@@ -30,9 +30,9 @@ const Login = () => {
   // Get the page they were trying to visit before being redirected to login
   const from = (location.state as LocationState)?.from?.pathname || '/';
 
-  // Check if the email is an admin email
+  // Check if the email is an admin email or a special test email
   const checkIfAdminEmail = (email: string) => {
-    return email.toLowerCase().includes('admin');
+    return email.toLowerCase().includes('admin') || email.toLowerCase() === 'nestertester5@testing.org';
   };
 
   // Update admin status when email changes
@@ -195,7 +195,7 @@ const Login = () => {
                 </p>
                 {isAdminEmail && (
                   <p className="text-sm text-green-700 mb-2">
-                    <strong>Admin account detected:</strong> Email confirmation will be bypassed for admin accounts. You can proceed with login.
+                    <strong>{email.toLowerCase() === 'nestertester5@testing.org' ? 'Test account detected:' : 'Admin account detected:'}</strong> Email confirmation will be bypassed. You can proceed with login.
                   </p>
                 )}
                 <Button
@@ -233,6 +233,7 @@ const Login = () => {
         <div className="text-center text-sm text-muted-foreground">
           <p>For demo purposes, you can use any email and password.</p>
           <p>Include "admin" in the email to get admin access.</p>
+          <p>The email "nestertester5@testing.org" is also pre-approved.</p>
         </div>
       </div>
     </div>
