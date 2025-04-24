@@ -1,0 +1,314 @@
+warning: in the working copy of 'src/context/AuthContext.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/context/AuthContext.tsx b/src/context/AuthContext.tsx[m
+[1mindex 2448ac9..1a82816 100644[m
+[1m--- a/src/context/AuthContext.tsx[m
+[1m+++ b/src/context/AuthContext.tsx[m
+[36m@@ -1,451 +1,311 @@[m
+[31m-import React, { createContext, useContext, useState, useEffect } from 'react';[m
+[32m+[m[32mimport React, { createContext, useContext, useState, useEffect, useRef } from 'react';[m
+ import { supabase } from '@/lib/supabase';[m
+ import { UserProfile } from '@/types';[m
+ import { toast } from 'sonner';[m
+[32m+[m[32mimport { Session, User } from '@supabase/supabase-js'; // Import Session and User[m
+ [m
+ interface AuthContextType {[m
+   isAuthenticated: boolean;[m
+   userProfile: UserProfile | null;[m
+[31m-  login: (email: string, password: string) => Promise<any>;[m
+[32m+[m[32m  isLoading: boolean; // Add isLoading state[m
+[32m+[m[32m  session: Session | null; // Add session state[m
+[32m+[m[32m  login: (email: string, password: string) => Promise<{ user: User | null; error: any | null }>;[m
+   logout: () => Promise<void>;[m
+[31m-  register: (email: string, password: string, name: string) => Promise<any>;[m
+[31m-  updateUserProfile: (updates: Partial<UserProfile>) => void;[m
+[31m-  resendConfirmationEmail: (email: string) => Promise<void>;[m
+[31m-  checkEmailConfirmation: (email: string) => Promise<boolean>;[m
+[32m+[m[32m  register: (email: string, password: string, name: string) => Promise<{ user: User | null; error: any | null }>;[m
+[32m+[m[32m  updateUserProfileLocally: (updates: Partial<UserProfile>) => void; // Renamed for clarity[m
+[32m+[m[32m  // Email confirmation functions removed, assuming handled by Supabase settings/UI prompts[m
+ }[m
+ [m
+ export const AuthContext = createContext<AuthContextType | null>(null);[m
+ [m
+ export const useAuth = () => {[m
+   const context = useContext(AuthContext);[m
+[31m-[m
+   if (!context) {[m
+     throw new Error('useAuth must be used within an AuthProvider');[m
+   }[m
+[31m-[m
+   return context;[m
+ };[m
+ [m
+ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {[m
+[31m-  const [isLoading, setIsLoading] = useState(true);[m
+[31m-  const [isAuthenticated, setIsAuthenticated] = useState(false);[m
+[32m+[m[32m  const [isLoading, setIsLoading] = useState(true); // Start loading initially[m
+[32m+[m[32m  const [session, setSession] = useState<Session | null>(null);[m
+   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);[m
+[32m+[m[32m  const isMounted = useRef(true); // Track component mount status[m
+ [m
+[31m-  // Load auth state from localStorage and verify with Supabase[m
+[31m-  useEffect(() => {[m
+[31m-    const loadAuthState = async () => {[m
+[31m-      try {[m
+[31m-        // First check localStorage[m
+[31m-        const savedAuth = localStorage.getItem('authUser');[m
+[31m-        let localAuthValid = false;[m
+[31m-        let localUserProfile = null;[m
+[31m-[m
+[31m-        if (savedAuth) {[m
+[31m-          try {[m
+[31m-            const { isAuthenticated: savedIsAuth, userProfile: savedProfile } = JSON.parse(savedAuth);[m
+[31m-            if (savedIsAuth && savedProfile) {[m
+[31m-              console.log('Found stored auth session');[m
+[31m-              localAuthValid = true;[m
+[31m-              localUserProfile = savedProfile;[m
+[31m-            } else {[m
+[31m-              // Invalid stored auth data[m
+[31m-              console.log('Invalid stored auth data, removing');[m
+[31m-              localStorage.removeItem('authUser');[m
+[31m-            }[m
+[31m-          } catch (parseError) {[m
+[31m-            console.error('Error parsing stored auth:', parseError);[m
+[31m-            localStorage.removeItem('authUser');[m
+[31m-          }[m
+[31m-        }[m
+[32m+[m[32m  // Derive isAuthenticated from session state[m
+[32m+[m[32m  const isAuthenticated = !!session?.user;[m
+ [m
+[31m-        // Then check Supabase session[m
+[31m-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();[m
+[32m+[m[32m  // Fetch profile based on user ID[m
+[32m+[m[32m  const fetchUserProfile = async (user: User | null): Promise<UserProfile | null> => {[m
+[32m+[m[32m    if (!user) {[m
+[32m+[m[32m      return null;[m
+[32m+[m[32m    }[m
+ [m
+[31m-        if (sessionError) {[m
+[31m-          console.error('Error getting Supabase session:', sessionError);[m
+[31m-          // If there's an error but we have local auth, use that[m
+[31m-          if (localAuthValid) {[m
+[31m-            setIsAuthenticated(true);[m
+[31m-            setUserProfile(localUserProfile);[m
+[31m-          }[m
+[31m-        } else if (sessionData?.session) {[m
+[31m-          console.log('Found active Supabase session');[m
+[31m-[m
+[31m-          // We have an active Supabase session[m
+[31m-          const userId = sessionData.session.user.id;[m
+[31m-[m
+[31m-          // If we have local auth with matching ID, use that[m
+[31m-          if (localAuthValid && localUserProfile.id === userId) {[m
+[31m-            setIsAuthenticated(true);[m
+[31m-            setUserProfile(localUserProfile);[m
+[31m-          } else {[m
+[31m-            // Otherwise fetch the profile from Supabase[m
+[31m-            try {[m
+[31m-              const { data: profileData, error: profileError } = await supabase[m
+[31m-                .from('profiles')[m
+[31m-                .select('*')[m
+[31m-                .eq('id', userId)[m
+[31m-                .single();[m
+[31m-[m
+[31m-              if (profileError) {[m
+[31m-                console.error('Error fetching profile from Supabase:', profileError);[m
+[31m-                // Create a default profile[m
+[31m-                const defaultProfile: UserProfile = {[m
+[31m-                  id: userId,[m
+[31m-                  firstName: sessionData.session.user.email?.split('@')[0] || 'User',[m
+[31m-                  lastName: '',[m
+[31m-                  email: sessionData.session.user.email || '',[m
+[31m-                  licenses: [],[m
+[31m-                  isProfileComplete: false,[m
+[31m-                  role: sessionData.session.user.email?.toLowerCase().includes('admin') ? 'admin' : 'user'[m
+[31m-                };[m
+[31m-[m
+[31m-                setIsAuthenticated(true);[m
+[31m-                setUserProfile(defaultProfile);[m
+[31m-[m
+[31m-                // Save to localStorage[m
+[31m-                localStorage.setItem('authUser', JSON.stringify({[m
+[31m-                  isAuthenticated: true,[m
+[31m-                  userProfile: defaultProfile[m
+[31m-                }));[m
+[31m-              } else {[m
+[31m-                // Create user profile from Supabase data[m
+[31m-                const userProfile: UserProfile = {[m
+[31m-                  id: userId,[m
+[31m-                  firstName: profileData.first_name || '',[m
+[31m-                  lastName: profileData.last_name || '',[m
+[31m-                  email: sessionData.session.user.email || '',[m
+[31m-                  licenses: profileData.licenses || [],[m
+[31m-                  isProfileComplete: !!profileData.is_profile_complete,[m
+[31m-                  role: profileData.role as 'admin' | 'user' || 'user'[m
+[31m-                };[m
+[31m-[m
+[31m-                setIsAuthenticated(true);[m
+[31m-                setUserProfile(userProfile);[m
+[31m-[m
+[31m-                // Save to localStorage[m
+[31m-                localStorage.setItem('authUser', JSON.stringify({[m
+[31m-                  isAuthenticated: true,[m
+[31m-                  userProfile[m
+[31m-                }));[m
+[31m-              }[m
+[31m-            } catch (error) {[m
+[31m-              console.error('Error in profile fetch process:', error);[m
+[31m-            }[m
+[31m-          }[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      const { data: profileData, error: profileError } = await supabase[m
+[32m+[m[32m        .from('profiles')[m
+[32m+[m[32m        .select('*')[m
+[32m+[m[32m        .eq('id', user.id)[m
+[32m+[m[32m        .single();[m
+[32m+[m
+[32m+[m[32m      if (profileError) {[m
+[32m+[m[32m        if (profileError.code === 'PGRST116') { // "Rowlevel security policy violation" or "No rows found"[m
+[32m+[m[32m          console.warn(`Profile not found for user ${user.id}. A trigger should create this.`);[m
+[32m+[m[32m          // Return a minimal profile in memory, but ideally the trigger handles this.[m
+[32m+[m[32m          return {[m
+[32m+[m[32m            id: user.id,[m
+[32m+[m[32m            email: user.email || '',[m
+[32m+[m[32m            firstName: user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || 'User',[m
+[32m+[m[32m            lastName: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',[m
+[32m+[m[32m            role: 'user', // Default role, should be set by trigger ideally[m
+[32m+[m[32m            isProfileComplete: false,[m
+[32m+[m[32m            licenses: [],[m
+[32m+[m[32m          };[m
+         } else {[m
+[31m-          console.log('No active Supabase session found');[m
+[31m-          // No Supabase session, but we might have valid local auth[m
+[31m-          if (localAuthValid) {[m
+[31m-            setIsAuthenticated(true);[m
+[31m-            setUserProfile(localUserProfile);[m
+[31m-          }[m
+[32m+[m[32m          console.error('Error fetching profile:', profileError);[m
+[32m+[m[32m          toast.error(`Error fetching profile: ${profileError.message}`);[m
+[32m+[m[32m          return null; // Return null on other errors[m
+         }[m
+[31m-      } catch (err) {[m
+[31m-        console.error('Error in auth state loading process:', err);[m
+[31m-      } finally {[m
+[31m-        setIsLoading(false);[m
+[32m+[m[32m      } else if (profileData) {[m
+[32m+[m[32m        // Map DB columns to UserProfile type[m
+[32m+[m[32m        const fetchedProfile: UserProfile = {[m
+[32m+[m[32m          id: profileData.id,[m
+[32m+[m[32m          firstName: profileData.first_name || '',[m
+[32m+[m[32m          lastName: profileData.last_name || '',[m
+[32m+[m[32m          email: user.email || profileData.email || '', // Prefer user.email from session[m
+[32m+[m[32m          licenses: profileData.licenses || [],[m
+[32m+[m[32m          isProfileComplete: !!profileData.is_profile_complete,[m
+[32m+[m[32m          role: profileData.role || 'user', // Get role from profile[m
+[32m+[m[32m        };[m
+[32m+[m[32m        console.log('User profile loaded:', fetchedProfile);[m
+[32m+[m[32m        return fetchedProfile;[m
+       }[m
+[31m-    };[m
+[32m+[m[32m      return null; // Should not happen if profileData exists, but good practice[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      console.error('Unexpected error fetching profile:', error);[m
+[32m+[m[32m      toast.error('An unexpected error occurred while loading your profile.');[m
+[32m+[m[32m      return null;[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+ [m
+[31m-    loadAuthState();[m
+[32m+[m[32m  // Effect to handle component mount/unmount status[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    isMounted.current = true;[m
+[32m+[m[32m    return () => {[m
+[32m+[m[32m      isMounted.current = false;[m
+[32m+[m[32m    };[m
+   }, []);[m
+ [m
+[31m-  const login = async (email: string, password: string) => {[m
+[31m-    try {[m
+[31m-      console.log('Attempting login for:', email);[m
+[31m-[m
+[31m-      // Special handling for admin emails to set the role[m
+[31m-      const isAdminEmail = email.toLowerCase().includes('admin') ||[m
+[31m-                          email.toLowerCase() === 'nestertester5@testing.org' ||[m
+[31m-                          email.toLowerCase() === 'gamedesign2030@gmail.com';[m
+[31m-[m
+[31m-      if (isAdminEmail) {[m
+[31m-        console.log('Admin email detected:', email);[m
+[32m+[m[32m  // Listen to Supabase auth state changes[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    setIsLoading(true); // Set loading true when starting the listener setup[m
+[32m+[m
+[32m+[m[32m    // Get initial session state[m
+[32m+[m[32m    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {[m
+[32m+[m[32m      if (!isMounted.current) return; // Check if component is still mounted[m
+[32m+[m[32m      setSession(initialSession);[m
+[32m+[m[32m      const profile = await fetchUserProfile(initialSession?.user ?? null);[m
+[32m+[m[32m      if (isMounted.current) {[m
+[32m+[m[32m        setUserProfile(profile);[m
+[32m+[m[32m        setIsLoading(false); // Set loading false after initial check completes[m
+       }[m
+[31m-[m
+[31m-      // First check if this user exists in the profiles table with direct password[m
+[31m-      try {[m
+[31m-        const { data: profileData, error: profileError } = await supabase[m
+[31m-          .from('profiles')[m
+[31m-          .select('*')[m
+[31m-          .eq('email', email.toLowerCase())[m
+[31m-          .single();[m
+[31m-[m
+[31m-        if (!profileError && profileData && profileData.password_hash) {[m
+[31m-          console.log('Found user in profiles table with password_hash');[m
+[31m-[m
+[31m-          // Check if password matches (simple check for demo purposes)[m
+[31m-          const inputPasswordHash = btoa(password);[m
+[31m-[m
+[31m-          if (profileData.password_hash === inputPasswordHash) {[m
+[31m-            console.log('Password matches, creating session');[m
+[31m-[m
+[31m-            // Create user profile[m
+[31m-            const userProfile: UserProfile = {[m
+[31m-              id: profileData.id,[m
+[31m-              firstName: profileData.first_name || '',[m
+[31m-              lastName: profileData.last_name || '',[m
+[31m-              email: profileData.email || '',[m
+[31m-              licenses: profileData.licenses || [],[m
+[31m-              isProfileComplete: !!profileData.is_profile_complete,[m
+[31m-              role: profileData.role as 'admin' | 'user' || 'user'[m
+[31m-            };[m
+[31m-[m
+[31m-            setIsAuthenticated(true);[m
+[31m-            setUserProfile(userProfile);[m
+[31m-[m
+[31m-            // Save to localStorage[m
+[31m-            localStorage.setItem('authUser', JSON.stringify({[m
+[31m-              isAuthenticated: true,[m
+[31m-              userProfile[m
+[31m-            }));[m
+[31m-[m
+[31m-            return { user: userProfile };[m
+[32m+[m[32m    }).catch(error => {[m
+[32m+[m[32m      console.error("Error getting initial session:", error);[m
+[32m+[m[32m      if (isMounted.current) {[m
+[32m+[m[32m        setIsLoading(false); // Ensure loading stops even on error[m
+[32m+[m[32m      }[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    // Subscribe to subsequent auth state changes[m
+[32m+[m[32m    const { data: authListener } = supabase.auth.onAuthStateChange([m
+[32m+[m[32m      async (_event, newSession) => {[m
+[32m+[m[32m        if (!isMounted.current) return; // Check if component is still mounted[m
+[32m+[m
+[32m+[m[32m        // Prevent unnecessary profile fetches if session/user hasn't changed[m
+[32m+[m[32m        const userIdChanged = newSession?.user?.id !== session?.user?.id;[m
+[32m+[m[32m        const sessionStatusChanged = !!newSession !== !!session;[m
+[32m+[m
+[32m+[m[32m        setSession(newSession); // Update session state regardless[m
+[32m+[m
+[32m+[m[32m        if (userIdChanged || sessionStatusChanged) {[m
+[32m+[m[32m          console.log('Auth state changed, fetching profile for:', newSession?.user?.id);[m
+[32m+[m[32m          setIsLoading(true); // Set loading when fetching profile due to auth change[m
+[32m+[m[32m          const profile = await fetchUserProfile(newSession?.user ?? null);[m
+[32m+[m[32m          if (isMounted.current) {[m
+[32m+[m[32m            setUserProfile(profile);[m
+[32m+[m[32m            setIsLoading(false); // Set loading false after profile fetch compl

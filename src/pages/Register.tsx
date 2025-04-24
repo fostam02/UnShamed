@@ -5,15 +5,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast'; // Keep for validation toasts
 import { User, Lock, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+// Remove direct supabase import, use context instead
+// import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 
 const Register = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast } = useToast(); // Keep for validation
+  const { register } = useAuth(); // Get register function from context
 
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); // Keep username for form input
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,66 +45,56 @@ const Register = () => {
       return;
     }
 
-    // Register the user
+    // Register the user using AuthContext
     setIsLoading(true);
 
     try {
-      console.log('Attempting to register with:', { email, username });
+      console.log('Attempting to register via context:', { email, username });
 
-      // Direct Supabase registration
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: username,
-          }
-        }
-      });
+      // Use register function from AuthContext
+      // Pass username (full name) to be stored in user_metadata by Supabase/trigger
+      const { user, error } = await register(email, password, username);
 
       if (error) {
-        throw error;
-      }
+        // AuthContext handles the error toast
+        console.error('Registration failed via context:', error);
+        // No additional toast needed here unless providing more specific UI feedback
+      } else if (user) {
+        // AuthContext handles the success toast (or info toast if confirmation needed)
+        console.log('Registration initiated via context for user:', user.id);
 
-      console.log('Registration successful:', data);
+        // Determine if navigation should happen immediately or wait for confirmation
+        const needsConfirmation = user.email_confirmed_at === null && user.identities?.length === 0;
 
-      // Create profile in the profiles table
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              email: email,
-              first_name: username,
-              last_name: '',
-              role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
-              is_profile_complete: false,
-              licenses: []
-            }
-          ]);
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
+        if (!needsConfirmation) {
+          // If no confirmation needed, navigate to login (or dashboard?)
+          // Give toast time to display
+          setTimeout(() => {
+            navigate('/login'); // Or navigate('/') if auto-login occurs
+          }, 1500);
         } else {
-          console.log('Profile created successfully');
+          // If confirmation is needed, stay on page or navigate to a confirmation pending page
+          // The context already showed an info toast.
+          console.log('Registration requires email confirmation.');
+          // Optionally navigate to a specific "check your email" page:
+          // navigate('/registration-pending');
         }
+      } else {
+         // Handle unexpected case where register doesn't error but returns no user
+         console.error('Registration returned no user and no error.');
+         toast({
+            title: "Registration Issue",
+            description: "An unexpected issue occurred. Please try again.",
+            variant: "destructive",
+         });
       }
 
-      toast({
-        title: "Account Created",
-        description: "You've successfully registered and can now log in.",
-      });
-
-      // Redirect to login page after a short delay
-      setTimeout(() => {
-        navigate('/login');
-      }, 1500);
     } catch (error: any) {
-      console.error('Registration error:', error);
+      // Catch any unexpected errors not handled by the register promise return
+      console.error('Unhandled registration exception:', error);
       toast({
-        title: "Registration Failed",
-        description: error?.message || "There was an error creating your account",
+        title: "Registration Error",
+        description: "An unexpected error occurred. Please try again later.",
         variant: "destructive",
       });
     } finally {

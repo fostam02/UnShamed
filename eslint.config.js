@@ -12,6 +12,22 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: ".",
+        sourceType: "module",
+      },
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          project: "./tsconfig.json",
+        },
+        alias: {
+          map: [["@", "./src"]],
+          extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
+        },
+      },
     },
     plugins: {
       "react-hooks": reactHooks,
@@ -27,3 +43,4 @@ export default tseslint.config(
     },
   }
 );
+

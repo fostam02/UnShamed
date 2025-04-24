@@ -1,65 +1,30 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Users,
   Settings,
-  Shield,
+  Brain,
   Bell,
   Database,
   ChevronLeft,
-  LogOut
+  Shield
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 const adminNavItems = [
-  {
-    title: "Dashboard",
-    icon: <Settings className="h-5 w-5" />,
-    href: "/admin"
-  },
-  {
-    title: "User Management",
-    icon: <Users className="h-5 w-5" />,
-    href: "/admin/users"
-  },
-  {
-    title: "AI Settings",
-    icon: <Settings className="h-5 w-5 text-blue-500" />,
-    href: "/admin/ai-settings"
-  },
-  {
-    title: "Security Settings",
-    icon: <Shield className="h-5 w-5" />,
-    href: "/admin/security"
-  },
-  {
-    title: "Notification Settings",
-    icon: <Bell className="h-5 w-5" />,
-    href: "/admin/notifications"
-  },
-  {
-    title: "Database Management",
-    icon: <Database className="h-5 w-5" />,
-    href: "/admin/database"
-  }
+  { title: 'Dashboard', href: '/admin', icon: <Shield className="h-4 w-4" /> },
+  { title: 'AI Settings', href: '/admin/ai-settings', icon: <Brain className="h-4 w-4" /> },
+  { title: 'Users', href: '/admin/users', icon: <Users className="h-4 w-4" /> },
+  { title: 'Security', href: '/admin/security', icon: <Settings className="h-4 w-4" /> },
+  { title: 'Notifications', href: '/admin/notifications', icon: <Bell className="h-4 w-4" /> },
+  { title: 'Database', href: '/admin/database', icon: <Database className="h-4 w-4" /> },
 ];
 
-export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
+export function AdminLayout() {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    // Clear admin authentication
-    sessionStorage.removeItem('adminAuth');
-    // Redirect to home
-    navigate('/');
-  };
-
-  // No need for a custom handler, we'll use React Router's Link
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <div className="w-64 border-r bg-card">
         <div className="p-4 border-b">
@@ -71,7 +36,7 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
             Back to Main App
           </Link>
         </div>
-        <nav className="p-2">
+        <nav className="p-2 space-y-1">
           {adminNavItems.map((item) => (
             <Link
               key={item.href}
@@ -82,27 +47,19 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
               )}
             >
               {item.icon}
-              {item.title}
+              <span>{item.title}</span>
             </Link>
           ))}
-
-          <div className="mt-4 pt-4 border-t">
-            <Button
-              variant="ghost"
-              className="w-full flex items-center justify-start gap-3 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-5 w-5" />
-              Exit Admin Panel
-            </Button>
-          </div>
         </nav>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto">
-        {children}
+      <div className="flex-1">
+        <Outlet />
       </div>
     </div>
   );
-};
+}
+
+export default AdminLayout;
+

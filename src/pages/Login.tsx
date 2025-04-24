@@ -1,8 +1,8 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+// useToast is not used directly here anymore, AuthContext handles toasts
+// import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,117 +18,65 @@ interface LocationState {
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, resendConfirmationEmail, checkEmailConfirmation } = useAuth();
-  const { toast } = useToast();
+  // Removed resendConfirmationEmail, checkEmailConfirmation from context usage
+  // Removed toast hook usage
+  const { login, isLoading } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  // Removed isLoading state as it is managed in AuthContext
   const [isEmailNotConfirmed, setIsEmailNotConfirmed] = useState(false);
-  const [isAdminEmail, setIsAdminEmail] = useState(false);
+  // Removed isAdminEmail state
 
   // Get the page they were trying to visit before being redirected to login
   const from = (location.state as LocationState)?.from?.pathname || '/';
 
-  // Check if the email is an admin email or a special test email
-  const checkIfAdminEmail = (email: string) => {
-    return email.toLowerCase().includes('admin') || email.toLowerCase() === 'nestertester5@testing.org';
-  };
-
-  // Update admin status when email changes
-  useEffect(() => {
-    setIsAdminEmail(checkIfAdminEmail(email));
-  }, [email]);
+  // Removed checkIfAdminEmail function
+  // Removed useEffect related to isAdminEmail
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email || !password) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter both email and password",
-        variant: "destructive"
-      });
+      alert("Please enter both email and password"); // Simple feedback
       return;
     }
 
-    setIsLoading(true);
+    // isLoading is managed in AuthContext
+    setIsEmailNotConfirmed(false); // Reset confirmation status on new attempt
 
     try {
-      await login(email, password);
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!"
-      });
-      navigate(from);
-    } catch (error: any) {
-      console.error('Login failed:', error);
+      // AuthContext login now returns { user, error }
+      const { user, error } = await login(email, password);
 
-      // Specific error message for unconfirmed email
-      if (error.message && error.message.includes('Email not confirmed')) {
-        setIsEmailNotConfirmed(true);
-        toast({
-          title: "Email Not Verified",
-          description: "Please verify your email address before logging in. Click 'Resend confirmation email' below.",
-          variant: "destructive"
-        });
-
-        // For admin emails, suggest they can still log in
-        if (isAdminEmail) {
-          toast({
-            title: "Admin Account Detected",
-            description: "As an admin, you can bypass email verification. Try logging in again."
-          });
+      if (error) {
+        console.error('Login failed:', error);
+        // Check error message for specific cases
+        if (error.message && error.message.includes('Email not confirmed')) {
+          setIsEmailNotConfirmed(true);
+          // AuthContext already shows a toast for this
         }
+        // AuthContext shows generic error toast otherwise
+      } else if (user) {
+        // Login successful, AuthContext handles the success toast
+        console.log("Login successful, navigating...");
+        navigate(from, { replace: true }); // Use replace to prevent back button going to login
       } else {
-        setIsEmailNotConfirmed(false);
-        toast({
-          title: "Login Failed",
-          description: error?.message || "Invalid credentials. Please try again.",
-          variant: "destructive"
-        });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendConfirmation = async () => {
-    if (!email) {
-      toast({
-        title: "Email Required",
-        description: "Please enter your email address first.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      // First check if the email is already confirmed
-      const isConfirmed = await checkEmailConfirmation(email);
-
-      if (isConfirmed) {
-        toast({
-          title: "Email Already Confirmed",
-          description: "This email is already confirmed. You can log in with your password."
-        });
-        return;
+        // Handle unexpected case where login doesn't error but returns no user
+        console.error('Login returned no user and no error.');
+        alert('An unexpected issue occurred during login. Please try again.');
       }
 
-      // If not confirmed, resend the confirmation email
-      await resendConfirmationEmail(email);
-      toast({
-        title: "Confirmation Email Sent",
-        description: "Please check your email inbox for the verification link."
-      });
     } catch (error: any) {
-      toast({
-        title: "Failed to Resend",
-        description: error?.message || "Could not resend confirmation email.",
-        variant: "destructive"
-      });
+      // Catch any unexpected errors not handled by the login promise return
+      console.error('Unhandled login exception:', error);
+      alert('An unexpected error occurred. Please try again.');
+    } finally {
+      // isLoading is managed in AuthContext
     }
   };
+
+  // Removed handleResendConfirmation function entirely
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted p-4">
@@ -189,23 +137,13 @@ const Login = () => {
             </Button>
 
             {isEmailNotConfirmed && (
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                <p className="text-sm text-amber-800 mb-2">
-                  Your email address has not been verified. Please check your inbox for a verification email or click below to receive a new one.
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm text-yellow-800 mb-2">
+                  Your email address has not been verified. Please check your inbox for a verification email from Supabase.
                 </p>
-                {isAdminEmail && (
-                  <p className="text-sm text-green-700 mb-2">
-                    <strong>{email.toLowerCase() === 'nestertester5@testing.org' ? 'Test account detected:' : 'Admin account detected:'}</strong> Email confirmation will be bypassed. You can proceed with login.
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleResendConfirmation}
-                  className="w-full text-sm bg-amber-100 hover:bg-amber-200 border-amber-300"
-                >
-                  Resend confirmation email
-                </Button>
+                {/* Removed admin bypass message and resend button */}
+                {/* If a resend mechanism is needed, it should likely be triggered */}
+                {/* via a separate API call or Supabase function, not the old context method */}
               </div>
             )}
           </form>
@@ -218,22 +156,14 @@ const Login = () => {
               </Link>
             </p>
 
-            <Button
-              type="button"
-              variant="link"
-              onClick={handleResendConfirmation}
-              className="text-sm text-muted-foreground hover:text-primary"
-              disabled={!email}
-            >
-              Resend confirmation email
-            </Button>
+            {/* Removed the resend confirmation button here */}
           </div>
         </div>
 
+        {/* Updated demo instructions */}
         <div className="text-center text-sm text-muted-foreground">
-          <p>For demo purposes, you can use any email and password.</p>
-          <p>Include "admin" in the email to get admin access.</p>
-          <p>The email "nestertester5@testing.org" is also pre-approved.</p>
+           <p>Login using your registered email and password.</p>
+           <p>Admin access is determined by the user role set in the database.</p>
         </div>
       </div>
     </div>
@@ -241,17 +171,3 @@ const Login = () => {
 };
 
 export default Login;
-
-
-
-
-
-
-
-
-
-
-
-
-
-

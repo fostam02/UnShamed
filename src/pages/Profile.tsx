@@ -10,6 +10,15 @@ import { License } from '@/types';
 import { PlusCircle, Trash2, Edit, Save, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+interface PersonalInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  primaryStateOfResidence: string;
+}
+
 const US_STATES = [
   { name: 'Alabama', abbreviation: 'AL' },
   { name: 'Alaska', abbreviation: 'AK' },
@@ -71,7 +80,7 @@ const Profile = () => {
   const { userProfile, updateUserProfile } = useAuth();
   const { toast } = useToast();
   
-  const [personalInfo, setPersonalInfo] = useState({
+  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
     firstName: userProfile?.firstName || '',
     lastName: userProfile?.lastName || '',
     email: userProfile?.email || '',
@@ -96,37 +105,39 @@ const Profile = () => {
   
   useEffect(() => {
     if (userProfile) {
-      setPersonalInfo({
-        firstName: userProfile.firstName || '',
-        lastName: userProfile.lastName || '',
-        email: userProfile.email || '',
-        phone: userProfile.phone || '',
-        dateOfBirth: userProfile.dateOfBirth || '',
-        primaryStateOfResidence: userProfile.primaryStateOfResidence || '',
-      });
-      
-      setLicenses(userProfile.licenses || []);
+      setPersonalInfo(prev => ({
+        ...prev,
+        ...userProfile
+      }));
     }
   }, [userProfile]);
-  
-  const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+
+  const handleInputChange = (field: keyof typeof personalInfo, event: React.ChangeEvent<HTMLInputElement>) => {
     setPersonalInfo(prev => ({
       ...prev,
-      [name]: value
+      [field]: event.target.value
     }));
   };
   
-  const handleSavePersonalInfo = () => {
-    updateUserProfile({
-      ...userProfile,
-      ...personalInfo
-    });
-    
-    toast({
-      title: "Profile Updated",
-      description: "Your personal information has been saved.",
-    });
+  const handleSavePersonalInfo = async () => {
+    try {
+      await updateUserProfile({
+        ...userProfile,
+        ...personalInfo
+      });
+      
+      toast({
+        title: "Success",
+        description: "Your profile has been updated successfully.",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save profile changes. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleNewLicenseChange = (field: keyof License, value: string) => {
@@ -136,11 +147,11 @@ const Profile = () => {
     }));
   };
   
-  const handleAddLicense = () => {
+  const handleAddLicense = async () => {
     if (!newLicense.licenseNumber || !newLicense.licenseType || !newLicense.state) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required license fields.",
+        title: "Required Fields Missing",
+        description: "Please fill in all required license fields (License Number, Type, and State).",
         variant: "destructive"
       });
       return;
@@ -149,39 +160,35 @@ const Profile = () => {
     const licenseId = `license-${Date.now()}`;
     const license: License = {
       id: licenseId,
-      licenseNumber: newLicense.licenseNumber || '',
-      licenseType: newLicense.licenseType || '',
-      state: newLicense.state || '',
+      licenseNumber: newLicense.licenseNumber,
+      licenseType: newLicense.licenseType,
+      state: newLicense.state,
       expirationDate: newLicense.expirationDate || '',
       issuanceDate: newLicense.issuanceDate || '',
       status: newLicense.status as 'active' | 'inactive' | 'pending' | 'expired',
       isPrimary: licenses.length === 0 ? true : newLicense.isPrimary || false
     };
-    
+
     const updatedLicenses = [...licenses, license];
     
-    setLicenses(updatedLicenses);
-    updateUserProfile({
-      ...userProfile,
-      licenses: updatedLicenses
-    });
-    
-    setNewLicense({
-      licenseType: '',
-      licenseNumber: '',
-      state: '',
-      expirationDate: '',
-      issuanceDate: '',
-      status: 'active',
-      isPrimary: false
-    });
-    
-    setIsAddingLicense(false);
-    
-    toast({
-      title: "License Added",
-      description: `${license.licenseType} license for ${license.state} has been added.`,
-    });
+    try {
+      await updateUserProfile({
+        ...userProfile,
+        licenses: updatedLicenses
+      });
+      
+      setLicenses(updatedLicenses);
+      toast({
+        title: "License Added",
+        description: "Your new license has been saved successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save license. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   const handleEditLicense = (licenseId: string) => {
@@ -303,7 +310,7 @@ const Profile = () => {
                     id="firstName" 
                     name="firstName"
                     value={personalInfo.firstName} 
-                    onChange={handlePersonalInfoChange} 
+                    onChange={(e) => handleInputChange('firstName', e)} 
                   />
                 </div>
                 
@@ -313,7 +320,7 @@ const Profile = () => {
                     id="lastName" 
                     name="lastName"
                     value={personalInfo.lastName} 
-                    onChange={handlePersonalInfoChange} 
+                    onChange={(e) => handleInputChange('lastName', e)} 
                   />
                 </div>
                 
@@ -324,7 +331,7 @@ const Profile = () => {
                     name="email"
                     type="email" 
                     value={personalInfo.email} 
-                    onChange={handlePersonalInfoChange} 
+                    onChange={handleInputChange} 
                     disabled 
                   />
                 </div>
@@ -336,7 +343,7 @@ const Profile = () => {
                     name="phone"
                     type="tel" 
                     value={personalInfo.phone} 
-                    onChange={handlePersonalInfoChange} 
+                    onChange={(e) => handleInputChange('phone', e)} 
                   />
                 </div>
                 
@@ -347,7 +354,7 @@ const Profile = () => {
                     name="dateOfBirth"
                     type="date" 
                     value={personalInfo.dateOfBirth} 
-                    onChange={handlePersonalInfoChange} 
+                    onChange={(e) => handleInputChange('dateOfBirth', e)} 
                   />
                 </div>
                 
@@ -702,3 +709,9 @@ const Profile = () => {
 };
 
 export default Profile;
+
+
+
+
+
+

@@ -6,19 +6,32 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check localStorage for authentication
-    const authData = localStorage.getItem('authUser');
-    if (authData) {
-      try {
-        const parsedData = JSON.parse(authData);
-        setIsAuthenticated(parsedData.isAuthenticated === true);
-      } catch (error) {
-        console.error('Error parsing auth data:', error);
+    // Function to check authentication
+    const checkAuth = () => {
+      // Check localStorage for authentication
+      const authData = localStorage.getItem('authUser');
+      if (authData) {
+        try {
+          const parsedData = JSON.parse(authData);
+          setIsAuthenticated(parsedData.isAuthenticated === true);
+        } catch (error) {
+          console.error('Error parsing auth data:', error);
+          setIsAuthenticated(false);
+        }
+      } else {
         setIsAuthenticated(false);
       }
-    } else {
-      setIsAuthenticated(false);
-    }
+    };
+
+    // Check immediately
+    checkAuth();
+
+    // Also set up a listener for storage events to handle login/logout in other tabs
+    window.addEventListener('storage', checkAuth);
+
+    return () => {
+      window.removeEventListener('storage', checkAuth);
+    };
   }, []);
 
   // Show loading while checking auth

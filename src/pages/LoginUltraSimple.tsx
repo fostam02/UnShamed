@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { UserProfile } from '@/types';
 
 const LoginUltraSimple = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -16,50 +19,52 @@ const LoginUltraSimple = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!email || !password) {
-      setError('Please enter both email and password');
-      return;
-    }
-
     setIsLoading(true);
+    setError('');
 
     try {
-      console.log('Ultra simple login for:', email);
-      
-      // Check if this is an admin email
-      const isAdminEmail = email.toLowerCase().includes('admin') ||
+      // First try the hook-based login
+      const result = await login(email, password);
+
+      if (result.success) {
+        setSuccess('Login successful! Redirecting...');
+
+        // Also perform a direct login to ensure localStorage is set
+        const isAdminEmail = email.toLowerCase().includes('admin') ||
                           email.toLowerCase() === 'nestertester5@testing.org' ||
                           email.toLowerCase() === 'gamedesign2030@gmail.com';
 
-      // Create a user profile based on the email
-      const userProfile = {
-        id: `user_${Date.now()}`,
-        firstName: email.split('@')[0],
-        lastName: '',
-        email: email.toLowerCase(),
-        licenses: [],
-        isProfileComplete: false,
-        role: isAdminEmail ? 'admin' : 'user'
-      };
+        const profile: UserProfile = {
+          id: `user_${Date.now()}`,
+          firstName: email.split('@')[0],
+          lastName: '',
+          email: email.toLowerCase(),
+          role: isAdminEmail ? 'admin' : 'user',
+          isProfileComplete: true,
+          name: email.split('@')[0]
+        };
 
-      // Store in localStorage - this is the key part that makes login work
-      localStorage.setItem('authUser', JSON.stringify({
-        isAuthenticated: true,
-        userProfile
-      }));
+        // If admin, also set admin auth
+        if (isAdminEmail) {
+          sessionStorage.setItem('adminAuth', 'true');
+        }
 
-      setSuccess('Login successful! Redirecting...');
+        // Set auth data directly in localStorage
+        localStorage.setItem('authUser', JSON.stringify({
+          isAuthenticated: true,
+          userProfile: profile
+        }));
 
-      // Redirect to dashboard
-      setTimeout(() => {
-        navigate('/');
-      }, 1000);
-    } catch (error: any) {
+        // Force a full page reload to ensure all state is properly initialized
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+      } else {
+        setError('Login failed. Please try again.');
+      }
+    } catch (error) {
+      setError('Login failed. Please try again.');
       console.error('Login error:', error);
-      setError(error?.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -156,3 +161,4 @@ const LoginUltraSimple = () => {
 };
 
 export default LoginUltraSimple;
+

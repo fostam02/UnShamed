@@ -107,7 +107,7 @@ const UserProfile = () => {
     });
   };
 
-  const addDelegate = () => {
+  const addDelegate = async () => {
     if (!newDelegateEmail || !newDelegateName) {
       toast({
         title: "Missing Information",
@@ -125,18 +125,33 @@ const UserProfile = () => {
       dateAdded: new Date().toISOString(),
     };
     
-    const updatedDelegates = [...delegates, newDelegate];
-    setDelegates(updatedDelegates);
-    localStorage.setItem('nurseDelegates', JSON.stringify(updatedDelegates));
-    
-    setNewDelegateEmail('');
-    setNewDelegateName('');
-    setNewDelegateAccess('view');
-    
-    toast({
-      title: "Delegate Added",
-      description: `${newDelegateName} has been added as a delegate.`,
-    });
+    try {
+      const { data, error } = await supabase
+        .from('delegates')
+        .insert([{
+          user_id: userProfile?.id,
+          email: newDelegateEmail,
+          name: newDelegateName,
+          access_level: newDelegateAccess,
+          date_added: new Date().toISOString()
+        }]);
+
+      if (error) throw error;
+
+      const updatedDelegates = [...delegates, newDelegate];
+      setDelegates(updatedDelegates);
+      
+      toast({
+        title: "Delegate Added",
+        description: `${newDelegateName} has been added as a delegate.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save delegate. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const removeDelegate = (id: string) => {
@@ -688,4 +703,6 @@ const UserProfile = () => {
 };
 
 export default UserProfile;
+
+
 

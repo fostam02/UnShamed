@@ -11,6 +11,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'react-router-dom';
+import { Shield } from 'lucide-react';
 
 export function UserNav() {
   const { user, logout } = useAuth();
@@ -42,8 +44,11 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {user?.role === 'admin' && (
-          <DropdownMenuItem onClick={() => navigate('/admin')}>
-            Admin Panel
+          <DropdownMenuItem asChild>
+            <Link to="/admin">
+              <Shield className="mr-2 h-4 w-4" />
+              Admin Panel
+            </Link>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={() => logout()}>
@@ -53,3 +58,4 @@ export function UserNav() {
     </DropdownMenu>
   );
 }
+

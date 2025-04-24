@@ -125,7 +125,7 @@ export default function Dashboard() {
             </CardContent>
             <CardFooter className="pt-0">
               <Button variant="ghost" size="sm" className="w-full" asChild>
-                <Link to="/">
+                <Link to="/states">
                   View All States
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -153,7 +153,7 @@ export default function Dashboard() {
               </div>
             </CardContent>
             <CardFooter className="pt-0">
-              <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate('/tasks')}>
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate('/states')}>
                 View All Tasks
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -229,7 +229,7 @@ export default function Dashboard() {
             </CardContent>
             {upcomingDeadlines.length > 5 && (
               <CardFooter>
-                <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate('/tasks')}>
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate('/states')}>
                   View All Deadlines
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -268,7 +268,7 @@ export default function Dashboard() {
               </Button>
 
               <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/audit-log">
+                <Link to="/audit">
                   <ListChecks className="mr-2 h-4 w-4" />
                   View Audit Log
                 </Link>

@@ -1,39 +1,101 @@
-import { createClient } from '@supabase/supabase-js';
+// Mock Supabase client for development
+// This allows the app to work without actual Supabase credentials
 
-// Get environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Create a mock Supabase client
+const createMockClient = () => {
+  console.log('Creating mock Supabase client');
 
-// Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables');
-  throw new Error('Missing Supabase environment variables');
-}
-
-// Add debug log
-console.log('Initializing Supabase with URL:', supabaseUrl);
-
-// Create Supabase client with better error handling
-let supabaseClient;
-
-try {
-  // Create the client with auto refresh token and persistent session
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+  return {
+    from: (table: string) => ({
+      insert: (data: any) => {
+        console.log(`Mock insert into ${table}:`, data);
+        return Promise.resolve({ data, error: null });
+      },
+      select: (columns: string) => {
+        console.log(`Mock select ${columns} from ${table}`);
+        return {
+          eq: (column: string, value: any) => {
+            console.log(`Mock where ${column} = ${value}`);
+            return Promise.resolve({ data: [], error: null });
+          },
+          order: (column: string, { ascending }: { ascending: boolean }) => {
+            console.log(`Mock order by ${column} ${ascending ? 'ASC' : 'DESC'}`);
+            return Promise.resolve({ data: [], error: null });
+          },
+          limit: (limit: number) => {
+            console.log(`Mock limit ${limit}`);
+            return Promise.resolve({ data: [], error: null });
+          }
+        };
+      },
+      update: (data: any) => {
+        console.log(`Mock update ${table}:`, data);
+        return {
+          eq: (column: string, value: any) => {
+            console.log(`Mock where ${column} = ${value}`);
+            return Promise.resolve({ data, error: null });
+          }
+        };
+      },
+      delete: () => {
+        console.log(`Mock delete from ${table}`);
+        return {
+          eq: (column: string, value: any) => {
+            console.log(`Mock where ${column} = ${value}`);
+            return Promise.resolve({ data: null, error: null });
+          }
+        };
+      }
+    }),
     auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true
+      onAuthStateChange: (callback: Function) => {
+        console.log('Mock auth state change registered');
+        return { data: { subscription: { unsubscribe: () => {} } }, error: null };
+      },
+      signUp: (credentials: any) => {
+        console.log('Mock sign up:', credentials);
+        return Promise.resolve({
+          data: { user: { id: 'mock-user-id', email: credentials.email } },
+          error: null
+        });
+      },
+      signIn: (credentials: any) => {
+        console.log('Mock sign in:', credentials);
+        return Promise.resolve({
+          data: { user: { id: 'mock-user-id', email: credentials.email } },
+          error: null
+        });
+      },
+      signOut: () => {
+        console.log('Mock sign out');
+        return Promise.resolve({ error: null });
+      },
+      getSession: () => {
+        console.log('Mock get session');
+        return Promise.resolve({
+          data: { session: { user: { id: 'mock-user-id', email: 'mock@example.com' } } },
+          error: null
+        });
+      }
+    },
+    storage: {
+      from: (bucket: string) => ({
+        upload: (path: string, file: File) => {
+          console.log(`Mock upload to ${bucket}/${path}`);
+          return Promise.resolve({ data: { path }, error: null });
+        },
+        getPublicUrl: (path: string) => {
+          console.log(`Mock get public URL for ${bucket}/${path}`);
+          return { data: { publicUrl: `https://mock-storage.com/${bucket}/${path}` } };
+        },
+        remove: (paths: string[]) => {
+          console.log(`Mock remove from ${bucket}:`, paths);
+          return Promise.resolve({ data: null, error: null });
+        }
+      })
     }
-  });
+  };
+};
 
-  // Test the connection
-  supabaseClient.auth.onAuthStateChange((event, session) => {
-    console.log('Supabase auth state changed:', event, session ? 'User session exists' : 'No user session');
-  });
-} catch (error) {
-  console.error('Failed to initialize Supabase client:', error);
-  // Create a fallback client that will show appropriate errors
-  supabaseClient = createClient(supabaseUrl || 'https://example.com', supabaseAnonKey || 'fallback-key');
-}
-
-export const supabase = supabaseClient;
+// Export the mock client
+export const supabase = createMockClient();

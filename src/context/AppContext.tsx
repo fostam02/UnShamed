@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppState, State, ComplianceItem, Document, AuditLogEntry } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface AppContextType {
   appState: AppState;
@@ -15,8 +17,44 @@ interface AppContextType {
   addAuditLogEntry: (entry: Omit<AuditLogEntry, 'id'>) => void;
 }
 
+// Sample state with demo data for better user experience
 const initialState: AppState = {
-  states: [],
+  states: [
+    {
+      id: 'state-1',
+      name: 'California',
+      abbreviation: 'CA',
+      status: 'active',
+      isOriginalState: true,
+      boardUrl: 'https://www.dca.ca.gov/',
+      renewalFrequency: 'Biennial',
+      renewalDeadline: '2025-12-31',
+      complianceItems: [
+        {
+          id: 'compliance-1',
+          title: 'License Renewal',
+          description: 'Renew California professional license',
+          dueDate: '2025-12-31',
+          completed: false,
+          stateId: 'state-1',
+          priority: 'high'
+        },
+        {
+          id: 'compliance-2',
+          title: 'CE Requirements',
+          description: 'Complete 30 hours of continuing education',
+          dueDate: '2025-11-30',
+          completed: false,
+          stateId: 'state-1',
+          priority: 'medium'
+        }
+      ],
+      documents: [],
+      auditLog: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  ],
   selectedStateId: null,
   isLoading: false,
   error: null
@@ -32,6 +70,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const parsedState = JSON.parse(savedState);
         console.log('Loaded state from localStorage:', parsedState);
+
+        // Validate the parsed state to ensure it has the expected structure
+        if (!parsedState.states || !Array.isArray(parsedState.states)) {
+          console.warn('Invalid state structure, using initial state');
+          return initialState;
+        }
+
         return parsedState;
       } catch (error) {
         console.error('Error parsing saved state:', error);
@@ -43,7 +88,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Save to localStorage whenever state changes
   useEffect(() => {
-    localStorage.setItem('unShamedState', JSON.stringify(appState));
+    try {
+      localStorage.setItem('unShamedState', JSON.stringify(appState));
+    } catch (error) {
+      console.error('Error saving state to localStorage:', error);
+    }
   }, [appState]);
 
   const addState = (state: Omit<State, 'id' | 'complianceItems' | 'documents' | 'auditLog' | 'createdAt' | 'updatedAt'>) => {
@@ -200,13 +249,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const addAuditLogEntry = (entry: Omit<AuditLogEntry, 'id'>) => {
+  const addAuditLogEntry = async (entry: Omit<AuditLogEntry, 'id'>) => {
     const newEntry: AuditLogEntry = {
       ...entry,
       id: `audit-${Date.now()}`,
       timestamp: entry.timestamp || new Date().toISOString()
     };
 
+    // Update local state first to ensure UI responsiveness
     setAppState((prev) => ({
       ...prev,
       states: prev.states.map((state) =>
@@ -219,6 +269,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : state
       ),
     }));
+
+    // Then try to save to Supabase if available
+    try {
+      // Save to Supabase
+      const { error } = await supabase
+        .from('audit_logs')
+        .insert([{
+          state_id: entry.stateId,
+          user: entry.user,
+          action: entry.action,
+          description: entry.description,
+          type: entry.type,
+          timestamp: newEntry.timestamp
+        }]);
+
+      if (error) {
+        console.warn('Supabase error, but local state was updated:', error);
+      } else {
+        console.log('Audit log entry added to Supabase:', newEntry);
+      }
+    } catch (error) {
+      console.error('Failed to add audit log entry to Supabase:', error);
+      // Don't show error toast since local state was updated successfully
+    }
   };
 
   const contextValue: AppContextType = {
@@ -245,5 +319,7 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+
 
 

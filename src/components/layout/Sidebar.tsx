@@ -13,13 +13,26 @@ import {
   Shield,
   LogOut
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 export function Sidebar({ className }: SidebarProps) {
   const location = useLocation();
   const { logout, userProfile } = useAuth();
+
+  // Add temporary debug display
+  const debugInfo = (
+    <div className="px-3 py-2 text-xs text-muted-foreground">
+      <pre className="whitespace-pre-wrap">
+        {JSON.stringify({
+          role: userProfile?.role,
+          email: userProfile?.email,
+          isAdmin: userProfile?.role === 'admin'
+        }, null, 2)}
+      </pre>
+    </div>
+  );
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -31,48 +44,60 @@ export function Sidebar({ className }: SidebarProps) {
     { name: 'Audit Log', href: '/audit', icon: FileText },
   ];
 
-  // Add admin panel link if user is admin
-  if (userProfile?.role === 'admin') {
-    navigation.push({ name: 'Admin Panel', href: '/admin', icon: Shield });
-  }
+  // Force add admin panel for debugging
+  navigation.push({
+    name: 'Admin Panel',
+    href: '/admin',
+    icon: Shield,
+  });
 
   return (
-    <div className={cn("pb-12 border-r min-h-screen", className)}>
-      <div className="space-y-4 py-4">
+    <div className={cn("pb-12 min-h-screen flex flex-col", className)}>
+      {debugInfo} {/* Add debug info at the top */}
+      <div className="space-y-4 py-4 flex-grow">
         <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold">UnShamed</h2>
-          <p className="px-4 text-sm text-muted-foreground">Compliance Tracker</p>
-        </div>
-        <nav className="space-y-1 px-2">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <Link key={item.name} to={item.href}>
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.name}
-                </Button>
+          <div className="space-y-1">
+            {navigation.map((item) => (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  "flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                  location.pathname === item.href ? "bg-accent text-accent-foreground" : "transparent"
+                )}
+              >
+                <item.icon className="mr-2 h-4 w-4" />
+                <span>{item.name}</span>
               </Link>
-            );
-          })}
-        </nav>
+            ))}
+          </div>
+        </div>
       </div>
-      <div className="px-3 mt-auto">
+
+      {/* Logout button at the bottom */}
+      <div className="px-3 py-4 mt-auto border-t">
         <Button
           variant="ghost"
-          className="w-full justify-start"
-          onClick={() => logout()}
+          className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 dark:hover:text-red-400"
+          onClick={() => {
+            console.log('Logout clicked from sidebar');
+            // Use window.location directly for more reliable logout
+            localStorage.removeItem('authUser');
+            localStorage.removeItem('unShamedState');
+            sessionStorage.removeItem('adminAuth');
+            console.log('Auth data cleared, redirecting to login...');
+            window.location.href = '/login';
+          }}
         >
           <LogOut className="mr-2 h-4 w-4" />
-          Log out
+          <span>Log Out</span>
         </Button>
       </div>
     </div>
   );
 }
+
+
 
 
 

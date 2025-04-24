@@ -14,11 +14,37 @@ import { useAuth } from '@/hooks/useAuth';
 
 export function UserNav() {
   const { userProfile, logout } = useAuth();
-  const initials = userProfile?.name
-    ?.split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase() || 'U';
+
+  // Get initials from name, firstName, or email
+  const getInitials = () => {
+    if (userProfile?.name) {
+      return userProfile.name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase();
+    } else if (userProfile?.firstName) {
+      return userProfile.firstName.charAt(0).toUpperCase();
+    } else if (userProfile?.email) {
+      return userProfile.email.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
+
+  // Get display name from name, firstName + lastName, or email
+  const getDisplayName = () => {
+    if (userProfile?.name) {
+      return userProfile.name;
+    } else if (userProfile?.firstName) {
+      return userProfile.firstName + (userProfile.lastName ? ` ${userProfile.lastName}` : '');
+    } else if (userProfile?.email) {
+      return userProfile.email.split('@')[0];
+    }
+    return 'User';
+  };
+
+  const initials = getInitials();
+  const displayName = getDisplayName();
 
   return (
     <DropdownMenu>
@@ -32,9 +58,9 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{userProfile?.name}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {userProfile?.email}
+              {userProfile?.email || 'No email'}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -44,7 +70,16 @@ export function UserNav() {
             <Link to="/admin">Admin Panel</Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => logout()}>
+        <DropdownMenuItem asChild>
+          <Link to="/profile">Profile</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            console.log('Logout clicked from UserNav');
+            logout();
+          }}
+          className="text-red-500 hover:text-red-600 cursor-pointer"
+        >
           Log out
         </DropdownMenuItem>
       </DropdownMenuContent>

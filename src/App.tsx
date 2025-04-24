@@ -8,12 +8,20 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ProtectedAdminRoute } from '@/components/admin/ProtectedAdminRoute';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 
 // Import your components
 import { AddState } from '@/pages/AddState';
 import { StateDetails } from '@/pages/StateDetails';
 import { StateProfiles } from '@/pages/StateProfiles';
-import { AdminDashboard, AISettings, UserManagement, SecuritySettings, NotificationSettings, DatabaseManagement } from '@/pages/admin';
+import {
+  AdminDashboard,
+  AISettings,
+  UserManagement,
+  SecuritySettings,
+  NotificationSettings,
+  DatabaseManagement
+} from '@/pages/admin';
 import LoginDirect from '@/pages/LoginDirect';
 import RegisterDirect from '@/pages/RegisterDirect';
 import LoginSimple from '@/pages/LoginSimple';
@@ -43,36 +51,40 @@ function App() {
                   <Route path="/welcome" element={<LandingPage />} />
                   <Route path="/login" element={<LoginUltraSimple />} />
                   <Route path="/register" element={<RegisterUltraSimple />} />
-                  <Route path="/login-fixed" element={<LoginFixed />} />
-                  <Route path="/register-fixed" element={<RegisterFixed />} />
-                  <Route path="/login-direct" element={<LoginDirect />} />
-                  <Route path="/register-direct" element={<RegisterDirect />} />
-                  <Route path="/login-simple" element={<LoginSimple />} />
-                  <Route path="/register-simple" element={<RegisterSimple />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
 
                   {/* Protected routes */}
                   <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                    <Route path="/" element={<StateProfiles />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/states" element={<StateProfiles />} />
-                    <Route path="/add-state" element={<AddState />} />
-                    <Route path="/state/:stateId" element={<StateDetails />} />
+                    <Route index element={<Dashboard />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/audit" element={<AuditLog />} />
                     <Route path="/notifications" element={<Notifications />} />
                     <Route path="/delegates" element={<Delegates />} />
-                    {/* Admin routes - protected with password */}
-                    <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
-                    <Route path="/admin/ai-settings" element={<ProtectedAdminRoute><AISettings /></ProtectedAdminRoute>} />
-                    <Route path="/admin/users" element={<ProtectedAdminRoute><UserManagement /></ProtectedAdminRoute>} />
-                    <Route path="/admin/security" element={<ProtectedAdminRoute><SecuritySettings /></ProtectedAdminRoute>} />
-                    <Route path="/admin/notifications" element={<ProtectedAdminRoute><NotificationSettings /></ProtectedAdminRoute>} />
-                    <Route path="/admin/database" element={<ProtectedAdminRoute><DatabaseManagement /></ProtectedAdminRoute>} />
+                    <Route path="/add-state" element={<AddState />} />
+                    <Route path="/state/:id" element={<StateDetails />} />
+                    <Route path="/states" element={<StateProfiles />} />
                   </Route>
 
+                  {/* Admin routes */}
+                  <Route path="/admin" element={
+                    <ProtectedRoute>
+                      <ProtectedAdminRoute>
+                        <AdminLayout />
+                      </ProtectedAdminRoute>
+                    </ProtectedRoute>
+                  }>
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="ai-settings" element={<AISettings />} />
+                    <Route path="users" element={<UserManagement />} />
+                    <Route path="security" element={<SecuritySettings />} />
+                    <Route path="notifications" element={<NotificationSettings />} />
+                    <Route path="database" element={<DatabaseManagement />} />
+                  </Route>
+
+                  {/* Root route is handled by the index in the protected routes section */}
+
                   {/* Fallback route */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
                 <Toaster />
               </div>
@@ -85,3 +97,6 @@ function App() {
 }
 
 export default App;
+
+
+

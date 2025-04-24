@@ -11,7 +11,7 @@ import { useAppContext } from '@/context/AppContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
-import { StateProfile, License } from '@/types';
+import { State, License } from '@/types';
 import { AlertCircle, Info, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -77,11 +77,11 @@ const US_STATES = [
 
 const normalizeLicenseType = (licenseType: string): string => {
   const type = licenseType.toUpperCase();
-  
+
   if (type === 'NP' || type === 'APRN') {
     return 'NP/APRN';
   }
-  
+
   return type;
 };
 
@@ -92,16 +92,16 @@ export const AddState = () => {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   const { states } = appState;
-  
+
   const originalState = states.find(state => state.isOriginalState);
   const [availableLicenses, setAvailableLicenses] = useState<License[]>([]);
   const [licenseError, setLicenseError] = useState<string | null>(null);
   const [licenseWarning, setLicenseWarning] = useState<string | null>(null);
-  
+
   // Change from single license ID to array of license IDs
   const [selectedLicenses, setSelectedLicenses] = useState<string[]>([]);
   const [selectedStateName, setSelectedStateName] = useState('');
-  
+
   const [formData, setFormData] = useState({
     name: '',
     abbreviation: '',
@@ -128,13 +128,13 @@ export const AddState = () => {
       startDate: new Date().toISOString(),
     }
   });
-  
+
   const [useSameProvider, setUseSameProvider] = useState(false);
-  
+
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const stateType = queryParams.get('type');
-    
+
     if (stateType === 'reciprocal') {
       setFormData(prev => ({
         ...prev,
@@ -142,7 +142,7 @@ export const AddState = () => {
       }));
     }
   }, [location.search]);
-  
+
   useEffect(() => {
     if (useSameProvider && originalState && originalState.supervisingProvider) {
       setFormData(prev => ({
@@ -155,25 +155,25 @@ export const AddState = () => {
       }));
     }
   }, [useSameProvider, originalState]);
-  
+
   useEffect(() => {
     if (userProfile?.licenses) {
       setAvailableLicenses(userProfile.licenses);
     }
   }, [userProfile?.licenses, states]);
-  
+
   const handleLicenseSelect = (licenseId: string) => {
     // Don't allow licenses from different states
     const selectedLicense = availableLicenses.find(license => license.id === licenseId);
     if (!selectedLicense) return;
-    
+
     const stateInfo = US_STATES.find(s => s.name === selectedLicense.state || s.abbreviation === selectedLicense.state);
     if (!stateInfo) return;
-    
+
     if (selectedLicenses.length > 0) {
       const firstLicense = availableLicenses.find(license => license.id === selectedLicenses[0]);
       if (!firstLicense) return;
-      
+
       const firstLicenseState = US_STATES.find(s => s.name === firstLicense.state || s.abbreviation === firstLicense.state);
       if (!firstLicenseState || firstLicenseState.name !== stateInfo.name) {
         setLicenseError(`You can only select multiple licenses from the same state. You already selected a license from ${firstLicenseState?.name || firstLicense.state}.`);
@@ -188,29 +188,32 @@ export const AddState = () => {
       }));
       setSelectedStateName(stateInfo.name);
     }
-    
+
     // Toggle selection
     if (selectedLicenses.includes(licenseId)) {
       setSelectedLicenses(prev => prev.filter(id => id !== licenseId));
     } else {
       setSelectedLicenses(prev => [...prev, licenseId]);
     }
-    
+
     setLicenseWarning(null);
     setLicenseError(null);
-    
+
     // Check if this state profile with these licenses already exists
     const existingStateWithSameLicenses = states.find(
       state => state.name === stateInfo.name &&
-      state.associatedLicenseId &&
-      selectedLicenses.some(id => id === state.associatedLicenseId)
+      (state.associatedLicenseId || state.metadata?.associatedLicenseId) &&
+      selectedLicenses.some(id =>
+        id === state.associatedLicenseId ||
+        id === state.metadata?.associatedLicenseId
+      )
     );
-    
+
     if (existingStateWithSameLicenses) {
       setLicenseWarning(`You already have a ${stateInfo.name} profile associated with one or more of these licenses. Only create another profile if the board has given you separate compliance requirements.`);
     }
   };
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -218,14 +221,14 @@ export const AddState = () => {
       [name]: value
     }));
   };
-  
+
   const handleCheckboxChange = (checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       isOriginalState: checked
     }));
   };
-  
+
   const handleStateSelect = (stateName: string) => {
     const selectedState = US_STATES.find(state => state.name === stateName);
     if (selectedState) {
@@ -234,25 +237,25 @@ export const AddState = () => {
         name: selectedState.name,
         abbreviation: selectedState.abbreviation
       }));
-      
+
       setSelectedStateName(selectedState.name);
       setSelectedLicenses([]);
       setLicenseWarning(null);
       setLicenseError(null);
-      
+
       // Find licenses for this state to suggest to the user
       const stateAbbreviation = selectedState.abbreviation;
       const matchingLicenses = availableLicenses.filter(
         license => license.state === selectedState.name || license.state === stateAbbreviation
       );
-      
+
       if (matchingLicenses.length > 0) {
         // We don't auto-select any licenses, but let the user know they can select licenses
         setLicenseWarning(`You have ${matchingLicenses.length} license(s) for ${selectedState.name}. You can select multiple licenses if they are all from this state.`);
       }
     }
   };
-  
+
   const handlePersonChange = (type: 'investigator' | 'supervisingProvider' | 'complianceMonitor', field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -262,7 +265,7 @@ export const AddState = () => {
       }
     }));
   };
-  
+
   const handleSameProviderChange = (checked: boolean) => {
     setUseSameProvider(checked);
   };
@@ -270,85 +273,89 @@ export const AddState = () => {
   const handleRemoveLicense = (licenseId: string) => {
     setSelectedLicenses(prev => prev.filter(id => id !== licenseId));
   };
-  
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (availableLicenses.length > 0 && selectedLicenses.length === 0) {
       setLicenseError("Please select at least one license to associate with this state profile");
       return;
     }
-    
+
     if (licenseError) {
       return;
     }
-    
+
     // Use the first selected license as the primary associated license ID
     const primaryLicenseId = selectedLicenses[0] || '';
-    
-    const newState: Omit<StateProfile, 'id'> = {
+
+    const newState = {
       name: formData.name,
       abbreviation: formData.abbreviation,
-      description: formData.description,
+      status: 'active' as const,
       isOriginalState: formData.isOriginalState,
-      investigationNoticeDate: formData.investigationNoticeDate,
-      initialResponseDueDate: formData.initialResponseDueDate,
-      associatedLicenseId: primaryLicenseId,
-      investigator: {
-        name: formData.investigator.name,
-        phone: formData.investigator.phone,
-        email: formData.investigator.email
-      },
-      complianceItems: [],
-      documents: [],
-      auditLog: [],
-      disciplinaryDetails: null,
-      complianceMonitor: {
-        monitorName: formData.complianceMonitor.name,
-        monitorEmail: formData.complianceMonitor.email,
-        frequency: formData.complianceMonitor.frequency,
-        startDate: formData.complianceMonitor.startDate,
-        name: formData.complianceMonitor.name,
-        email: formData.complianceMonitor.email,
-        phone: formData.complianceMonitor.phone
-      },
-      supervisingProvider: {
-        name: formData.supervisingProvider.name,
-        phone: formData.supervisingProvider.phone,
-        email: formData.supervisingProvider.email
+      boardUrl: '',
+      renewalFrequency: '',
+      renewalDeadline: '',
+      notes: formData.description,
+      // Store additional data in a structured way that won't break the app
+      metadata: {
+        investigationNoticeDate: formData.investigationNoticeDate,
+        initialResponseDueDate: formData.initialResponseDueDate,
+        associatedLicenseId: primaryLicenseId,
+        investigator: {
+          name: formData.investigator.name,
+          phone: formData.investigator.phone,
+          email: formData.investigator.email
+        },
+        disciplinaryDetails: null,
+        complianceMonitor: {
+          monitorName: formData.complianceMonitor.name,
+          monitorEmail: formData.complianceMonitor.email,
+          frequency: formData.complianceMonitor.frequency,
+          startDate: formData.complianceMonitor.startDate,
+          name: formData.complianceMonitor.name,
+          email: formData.complianceMonitor.email,
+          phone: formData.complianceMonitor.phone
+        },
+        supervisingProvider: {
+          name: formData.supervisingProvider.name,
+          phone: formData.supervisingProvider.phone,
+          email: formData.supervisingProvider.email
+        }
       }
     };
-    
+
     // To support multiple licenses, we can either:
     // 1. Create separate state profiles for each license (not ideal)
     // 2. Store all selected license IDs in the first state profile (better approach)
-    
+
     // For now, we'll store just the first license in associatedLicenseId
     // In the future, we could extend the StateProfile type to include an array of associatedLicenseIds
-    
+
     addState(newState);
-    
+
     toast({
       title: 'State Added',
       description: `${formData.name} has been added successfully with ${selectedLicenses.length} associated license(s).`
     });
-    
+
     navigate('/states');
   };
 
   // Get licenses that match the selected state
   const getFilteredLicenses = () => {
     if (!selectedStateName) return availableLicenses;
-    
+
     return availableLicenses.filter(license => {
       const licenseState = license.state;
-      return US_STATES.some(state => 
-        (state.name === selectedStateName || state.abbreviation === selectedStateName) && 
+      return US_STATES.some(state =>
+        (state.name === selectedStateName || state.abbreviation === selectedStateName) &&
         (licenseState === state.name || licenseState === state.abbreviation)
       );
     });
   };
-  
+
   return (
     <div className="container mx-auto mt-8">
       <h2 className="text-2xl font-bold mb-4">Add New State</h2>
@@ -358,7 +365,7 @@ export const AddState = () => {
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Associated Licenses:
             </label>
-            
+
             {/* Selected licenses display */}
             {selectedLicenses.length > 0 && (
               <div className="mb-3 space-y-2">
@@ -370,11 +377,11 @@ export const AddState = () => {
                     return (
                       <div key={licenseId} className="flex items-center bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
                         <span>{license.state} - {license.licenseType} ({license.licenseNumber})</span>
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-auto p-1 ml-1" 
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-1 ml-1"
                           onClick={() => handleRemoveLicense(licenseId)}
                         >
                           <X className="h-3 w-3" />
@@ -385,7 +392,7 @@ export const AddState = () => {
                 </div>
               </div>
             )}
-            
+
             {/* License selection */}
             <div className="border rounded-md p-3">
               <p className="text-sm mb-2">Add licenses from {selectedStateName || "a state"}</p>
@@ -393,12 +400,12 @@ export const AddState = () => {
                 {getFilteredLicenses().length > 0 ? (
                   getFilteredLicenses().map((license) => (
                     <div key={license.id} className="flex items-center space-x-2">
-                      <Checkbox 
+                      <Checkbox
                         id={`license-${license.id}`}
                         checked={selectedLicenses.includes(license.id)}
                         onCheckedChange={() => handleLicenseSelect(license.id)}
                       />
-                      <label 
+                      <label
                         htmlFor={`license-${license.id}`}
                         className="text-sm flex-1 cursor-pointer"
                       >
@@ -408,14 +415,14 @@ export const AddState = () => {
                   ))
                 ) : (
                   <div className="p-2 text-center text-sm text-muted-foreground">
-                    {selectedStateName 
-                      ? `No licenses found for ${selectedStateName}` 
+                    {selectedStateName
+                      ? `No licenses found for ${selectedStateName}`
                       : "Select a state to see available licenses"}
                   </div>
                 )}
               </div>
             </div>
-            
+
             {licenseError && (
               <Alert variant="destructive" className="mt-2">
                 <AlertCircle className="h-4 w-4" />
@@ -436,10 +443,10 @@ export const AddState = () => {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>No Licenses Found</AlertTitle>
             <AlertDescription>
-              You don't have any licenses added to your profile. 
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-primary" 
+              You don't have any licenses added to your profile.
+              <Button
+                variant="link"
+                className="p-0 h-auto text-primary"
                 onClick={() => navigate('/profile')}
               >
                 Add licenses in your profile settings
@@ -447,7 +454,7 @@ export const AddState = () => {
             </AlertDescription>
           </Alert>
         )}
-      
+
         <div className="mb-4">
           <label htmlFor="state" className="block text-gray-700 text-sm font-bold mb-2">
             State:
@@ -470,7 +477,7 @@ export const AddState = () => {
             </p>
           )}
         </div>
-        
+
         <div className="mb-4">
           <label htmlFor="description" className="block text-gray-700 text-sm font-bold mb-2">
             Description:
@@ -484,10 +491,10 @@ export const AddState = () => {
             rows={4}
           />
         </div>
-        
+
         <div className="mb-4 flex items-center">
-          <Checkbox 
-            id="isOriginalState" 
+          <Checkbox
+            id="isOriginalState"
             checked={formData.isOriginalState}
             onCheckedChange={handleCheckboxChange}
             className="mr-2"
@@ -496,7 +503,7 @@ export const AddState = () => {
             Is Original State
           </label>
         </div>
-        
+
         <div className="mb-4">
           <label htmlFor="investigationNoticeDate" className="block text-gray-700 text-sm font-bold mb-2">
             Investigation Notice Date:
@@ -510,7 +517,7 @@ export const AddState = () => {
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           />
         </div>
-        
+
         <div className="mb-4">
           <label htmlFor="initialResponseDueDate" className="block text-gray-700 text-sm font-bold mb-2">
             Initial Response Due Date:
@@ -524,7 +531,7 @@ export const AddState = () => {
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           />
         </div>
-        
+
         <div className="mb-6">
           <h3 className="font-medium text-lg mb-2">Investigator Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -544,7 +551,7 @@ export const AddState = () => {
                 Investigator Phone
               </label>
               <Input
-                id="investigatorPhone" 
+                id="investigatorPhone"
                 placeholder="Enter investigator phone"
                 value={formData.investigator.phone}
                 onChange={(e) => handlePersonChange('investigator', 'phone', e.target.value)}
@@ -564,14 +571,14 @@ export const AddState = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="mb-6">
           <h3 className="font-medium text-lg mb-2">Supervising Provider Information</h3>
-          
+
           {!formData.isOriginalState && originalState && originalState.supervisingProvider && (
             <div className="mb-3 flex items-center">
-              <Checkbox 
-                id="useSameProvider" 
+              <Checkbox
+                id="useSameProvider"
                 checked={useSameProvider}
                 onCheckedChange={handleSameProviderChange}
                 className="mr-2"
@@ -581,7 +588,7 @@ export const AddState = () => {
               </label>
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="supervisingProviderName" className="block text-sm font-medium mb-1">
@@ -600,7 +607,7 @@ export const AddState = () => {
                 Provider Phone
               </label>
               <Input
-                id="supervisingProviderPhone" 
+                id="supervisingProviderPhone"
                 placeholder="Enter provider phone"
                 value={formData.supervisingProvider.phone}
                 onChange={(e) => handlePersonChange('supervisingProvider', 'phone', e.target.value)}
@@ -622,7 +629,7 @@ export const AddState = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="mb-6">
           <h3 className="font-medium text-lg mb-2">Compliance Monitor Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -642,7 +649,7 @@ export const AddState = () => {
                 Monitor Phone
               </label>
               <Input
-                id="complianceMonitorPhone" 
+                id="complianceMonitorPhone"
                 placeholder="Enter monitor phone"
                 value={formData.complianceMonitor.phone}
                 onChange={(e) => handlePersonChange('complianceMonitor', 'phone', e.target.value)}
@@ -662,7 +669,7 @@ export const AddState = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center justify-between">
           <Button type="submit">
             Add State

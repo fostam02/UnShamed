@@ -10,6 +10,7 @@ export interface UserProfile {
   licenses?: License[];
   isProfileComplete?: boolean;
   role?: 'admin' | 'user';
+  name?: string; // Added for components that expect it
 }
 
 export interface License {
@@ -39,6 +40,24 @@ export interface State {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  // Legacy fields that might be accessed directly
+  associatedLicenseId?: string;
+  initialResponseDueDate?: string;
+  investigationNoticeDate?: string;
+  investigator?: any;
+  complianceMonitor?: any;
+  supervisingProvider?: any;
+  // New metadata field for additional properties
+  metadata?: {
+    associatedLicenseId?: string;
+    initialResponseDueDate?: string;
+    investigationNoticeDate?: string;
+    investigator?: any;
+    complianceMonitor?: any;
+    supervisingProvider?: any;
+    disciplinaryDetails?: any;
+    [key: string]: any;
+  };
 }
 
 export interface ComplianceItem {
